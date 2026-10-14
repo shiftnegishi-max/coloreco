@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <title>メール作成ツール</title>
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' fill='%23444'/><path d='M 15 25 L 50 50 L 85 25 M 15 25 L 15 75 L 85 75 L 85 25 Z' stroke='white' stroke-width='6' fill='none' stroke-linecap='round' stroke-linejoin='round'/></svg>">
+    <style>
+        * { box-sizing: border-box; }
+        html, body {
+            margin: 0;
+            padding: 0;
+            height: 100%;
+            font-family: "Meiryo", sans-serif;
+            background-color: #e9ecef;
+        }
+        .page-wrap {
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+        }
+        .top-bar {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 12px 20px;
+            background: #2c3e50;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+            flex-shrink: 0;
+        }
+        .top-bar .app-title {
+            color: #fff;
+            font-weight: bold;
+            font-size: 1.15em;
+            margin-right: 20px;
+            white-space: nowrap;
+        }
+        .tool-tab-container {
+            display: flex;
+            gap: 8px;
+        }
+        .tool-tab {
+            padding: 10px 22px;
+            cursor: pointer;
+            background: #46596e;
+            border: none;
+            border-radius: 6px;
+            font-weight: bold;
+            color: #d7dee6;
+            font-size: 0.95em;
+            transition: background 0.15s, color 0.15s;
+        }
+        .tool-tab:hover {
+            background: #57708a;
+        }
+        .tool-tab.active {
+            background: #ffffff;
+            color: #2c3e50;
+        }
+        .tool-tab.active.tab-1 { border-bottom: 4px solid #0056b3; }
+        .tool-tab.active.tab-2 { border-bottom: 4px solid #17a2b8; }
+
+        .frame-area {
+            flex: 1;
+            position: relative;
+            background: #e9ecef;
+        }
+        .tool-frame {
+            position: absolute;
+            top: 0; left: 0;
+            width: 100%;
+            height: 100%;
+            border: none;
+            display: none;
+        }
+        .tool-frame.active {
+            display: block;
+        }
+        .placeholder {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 100%;
+            color: #888;
+            font-size: 1em;
+        }
+    </style>
+</head>
+<body>
+
+<div class="page-wrap">
+    <div class="top-bar">
+        <div class="app-title">メール作成ツール</div>
+        <div class="tool-tab-container">
+            <button class="tool-tab tab-1 active" onclick="showTool(1, this)">カラ・レコ</button>
+            <button class="tool-tab tab-2" onclick="showTool(2, this)">勤給解決</button>
+        </div>
+    </div>
+
+    <div class="frame-area">
+        <iframe id="frame-1" class="tool-frame active" src="カラ・レコ/カラ・レコ.html"></iframe>
+        <iframe id="frame-2" class="tool-frame" src="" data-src="勤給解決/勤給解決.html"></iframe>
+    </div>
+</div>
+
+<script>
+    // 2つ目以降のiframeは初回クリック時に読み込む(初期表示を軽くするため)
+    var loaded = { 1: true, 2: false };
+
+    function showTool(num, btnEl) {
+        // タブの見た目切り替え
+        document.querySelectorAll('.tool-tab').forEach(function(t) {
+            t.classList.remove('active');
+        });
+        btnEl.classList.add('active');
+
+        // iframeの表示切り替え
+        document.querySelectorAll('.tool-frame').forEach(function(f) {
+            f.classList.remove('active');
+        });
+        var frame = document.getElementById('frame-' + num);
+        frame.classList.add('active');
+
+        // 未読込のiframeはここでsrcをセット(遅延読み込み)
+        if (!loaded[num]) {
+            frame.src = frame.getAttribute('data-src');
+            loaded[num] = true;
+        }
+
+        // アクティブなツールタブをlocalStorageに保存
+        localStorage.setItem('mail-activeTool', num.toString());
+    }
+
+    // ページ読み込み時の処理
+    window.addEventListener('DOMContentLoaded', function() {
+        // 初回アクセス判定
+        var isFirstVisit = !localStorage.getItem('mail-visited-flag');
+        
+        if (isFirstVisit) {
+            // 初回アクセス：カラ・レコの「新規開設」タブを開くよう指定
+            localStorage.setItem('karareco-activeTab', 'newopen');
+            localStorage.setItem('mail-visited-flag', 'true');
+            // ツール1（カラ・レコ）をアクティブに
+            var tab1 = document.querySelector('.tool-tab.tab-1');
+            if (tab1) showTool(1, tab1);
+        } else {
+            // 2回目以降：前回のアクティブなツールを復元
+            var activeTool = localStorage.getItem('mail-activeTool') || '1';
+            activeTool = parseInt(activeTool);
+            
+            // 対応するタブボタンを取得してクリック
+            var buttons = document.querySelectorAll('.tool-tab');
+            if (buttons[activeTool - 1]) {
+                showTool(activeTool, buttons[activeTool - 1]);
+            }
+        }
+    });
+</script>
+
+</body>
+</html>
