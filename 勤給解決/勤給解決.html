@@ -1,0 +1,1056 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <title>【勤給解決】メール作成ツール</title>
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' fill='%23008b8b'/><path d='M 15 25 L 50 50 L 85 25 M 15 25 L 15 75 L 85 75 L 85 25 Z' stroke='white' stroke-width='6' fill='none' stroke-linecap='round' stroke-linejoin='round'/></svg>">
+    <style>
+        body { font-family: "Meiryo", sans-serif; line-height: 1.5; max-width: 1200px; margin: 20px auto; padding: 20px; background-color: #f0f2f5; }
+        
+        /* タイトルと共通設定を包むヘッダーエリアのスタイル */
+        .page-header { display: flex; flex-direction: column; gap: 10px; margin-bottom: 20px; }
+        .page-title { font-size: 1.6em; font-weight: bold; color: #333; margin: 0; padding-left: 10px; border-left: 5px solid #17a2b8; }
+        
+        /* 【修正箇所】タイトルの下に配置するための共通情報エリアのスタイル */
+        .common-header-panel { display: flex; align-items: center; gap: 10px; padding-left: 10px; }
+        .common-header-panel h2 { font-size: 0.9em; color: #555; margin: 0; border: none; padding: 0; white-space: nowrap; font-weight: bold; }
+        
+        /* 自分の名前入力欄の横幅制限 */
+        .name-input-wrap { width: 180px; }
+        
+        .tab-container { display: flex; flex-wrap: wrap; gap: 5px; margin-bottom: 0; }
+        .tab { padding: 10px 18px; cursor: pointer; background: #ddd; border: 1px solid #ccc; border-bottom: none; border-radius: 8px 8px 0 0; font-weight: bold; color: #666; }
+        .tab.active { background: white; color: #17a2b8; border-top: 4px solid #17a2b8; }
+        
+        .container { background: white; padding: 25px; border-radius: 0 8px 8px 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); display: flex; gap: 20px; }
+        .input-panel { flex: 1; border-right: 1px solid #ddd; padding-right: 20px; max-height: 85vh; overflow-y: auto; }
+        .output-panel { flex: 1; padding-left: 10px; }
+        h2 { font-size: 1.1em; color: #17a2b8; border-left: 4px solid #17a2b8; padding-left: 10px; margin: 20px 0 10px; }
+        .form-group { margin-bottom: 10px; }
+        label { display: block; font-size: 0.85em; font-weight: bold; margin-bottom: 3px; color: #555; }
+        input, select, textarea { width: 100%; padding: 6px; box-sizing: border-box; border: 1px solid #ccc; border-radius: 4px; }
+        .row { display: flex; gap: 10px; }
+        .row > div { flex: 1; }
+        
+        .subject-wrap { display: flex; gap: 5px; margin-bottom: 15px; }
+        input#output-subject { font-weight: bold; color: #333; background: #fdfdfd; flex: 1; }
+        .copy-sub-btn { padding: 0 15px; background: #28a745; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 0.85em; }
+        textarea#output { width: 100%; height: 680px; font-family: monospace; font-size: 13px; padding: 10px; border: 1px solid #ccc; background: #fafafa; }
+        
+        .copy-btn { width: 100%; padding: 12px; background: #17a2b8; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; margin-top: 10px; }
+        .check-box-group { background: #eef6ff; padding: 15px; border-radius: 4px; margin-top: 5px; font-size: 0.9em; }
+        .check-item { margin-bottom: 5px; display: flex; align-items: center; }
+        .check-item input { width: auto; margin-right: 8px; }
+        .v-input { width: 100px; padding: 3px; margin-left: auto; font-size: 0.9em; }
+        .disabled-label { color: #aaa; text-decoration: line-through; }
+        .radio-group { display: flex; gap: 15px; background: #fff3cd; padding: 10px; border-radius: 4px; margin-bottom: 15px; }
+        .radio-item { display: flex; align-items: center; font-weight: bold; font-size: 0.9em; cursor: pointer; }
+        .radio-item input { width: auto; margin-right: 5px; cursor: pointer; }
+        
+        .checkbox-item { display: flex; align-items: center; font-weight: bold; font-size: 0.9em; cursor: pointer; }
+        .checkbox-item input { width: auto; margin-right: 6px; cursor: pointer; }
+        
+        .sub-checkbox-group { display: flex; flex-direction: column; gap: 8px; background: #e6f2ff; padding: 12px; border-radius: 4px; margin-top: 8px; margin-left: 15px; border-left: 3px solid #17a2b8; }
+        .sub-checkbox-item { display: flex; align-items: center; font-weight: bold; font-size: 0.85em; cursor: pointer; }
+        .sub-checkbox-item input { width: auto; margin-right: 6px; cursor: pointer; }
+
+        /* 画像風レイアウト用のスタイル */
+        .app-layout-box { background-color: #e6f2ff; padding: 15px; border-radius: 6px; margin-bottom: 15px; }
+        .app-group-title { font-size: 0.9em; font-weight: bold; color: #333; margin: 10px 0 5px 0; }
+        .app-group-title:first-child { margin-top: 0; }
+        .app-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
+        .app-label { display: flex; align-items: center; font-size: 0.9em; font-weight: normal; color: #111; cursor: pointer; user-select: none; }
+        .app-label input[type="checkbox"] { width: auto; margin-right: 8px; }
+        .app-input-wrap { width: 45%; }
+        .app-input-wrap input { background: #fff; border: 1px solid #ccc; border-radius: 4px; padding: 4px 8px; }
+
+        .hidden { display: none; }
+    </style>
+    <script src="../config.js" onerror="console.warn('config.jsが見つかりません。デフォルト値を使用します。')"></script>
+    <script>
+        // ローカルストレージから設定を読み込む
+        function loadConfigFromStorage() {
+            const stored = localStorage.getItem('kinkyu-config');
+            if (stored) {
+                try {
+                    const storedConfig = JSON.parse(stored);
+                    if (storedConfig.DEFAULT_MY_NAME) {
+                        if (typeof CONFIG === 'undefined') CONFIG = {};
+                        CONFIG.DEFAULT_MY_NAME = storedConfig.DEFAULT_MY_NAME;
+                    }
+                } catch (e) {
+                    console.warn('ローカルストレージの設定読み込みに失敗しました', e);
+                }
+            }
+        }
+        loadConfigFromStorage();
+
+        // myName が変更されたときに保存
+        function saveConfigToStorage() {
+            const myNameEl = document.getElementById('myName');
+            if (myNameEl) {
+                const config = {
+                    DEFAULT_MY_NAME: myNameEl.value
+                };
+                localStorage.setItem('kinkyu-config', JSON.stringify(config));
+            }
+        }
+    </script>
+</head>
+<body>
+
+<div class="page-header">
+    <div class="page-title">勤給解決</div>
+    <div class="common-header-panel">
+        <div class="row">
+            <div class="form-group name-input-wrap">
+                <label>名前</label>
+                <input type="text" id="myName" value="" placeholder="自分の名前を入力" oninput="generate(); saveConfigToStorage();">
+            </div>
+            <div class="form-group"><label>相手先 会社名</label><input type="text" id="clientCompany" placeholder="〇〇株式会社" oninput="generate()"> </div>
+            <div class="form-group" id="group-client-staff"><label>相手先 担当者名</label><input type="text" id="clientStaff" placeholder="担当者名苗字" oninput="generate()"></div>
+        </div>
+    </div>
+</div>
+
+<div class="tab-container">
+    <div class="tab active" data-tab="newopen" onclick="switchTab('newopen')">新規開設</div>
+    <div class="tab" data-tab="renew" onclick="switchTab('renew')">ライセンス追加</div>
+    <div class="tab" data-tab="setup" onclick="switchTab('setup')">初回設定</div>
+    <div class="tab" data-tab="holiday" onclick="switchTab('holiday')">祝日設定</div>
+    <div class="tab" data-tab="vacation" onclick="switchTab('vacation')">長期休暇通知</div>
+    <div class="tab" data-tab="vup-maintenance" onclick="switchTab('vup-maintenance')">メンテナンス</div>
+    <div class="tab" data-tab="vup-app" onclick="switchTab('vup-app')">バージョンアップ</div>
+</div>
+
+<div class="container">
+    <div class="input-panel">
+
+        <div id="panel-newopen">
+            <h2>処理内容</h2>
+            <div class="form-group">
+                <textarea id="newopenMemo" style="height: 180px;" placeholder="※XX案件&#10;※1月利用開始、初回2月請求の処理でお願いします。" oninput="generate()"></textarea>
+            </div>
+        </div>
+
+        <div id="panel-renew" class="hidden">
+            <h2>処理内容</h2>
+            <div class="form-group">
+                <textarea id="tashibuMemo" style="height: 180px;" placeholder="※シフト直案件&#10;※１月利用開始、初回２月請求の処理でお願いします。" oninput="generate()"></textarea>
+            </div>
+        </div>
+
+        <div id="panel-setup" class="hidden">
+            <h2>用途切替</h2>
+            <div class="radio-group">
+                <label class="radio-item">
+                    <input type="radio" name="setupType" value="notice" checked onchange="toggleSetupFields(); generate();"> 通知用
+                </label>
+                <label class="radio-item">
+                    <input type="radio" name="setupType" value="reply" onchange="toggleSetupFields(); generate();"> 返信用
+                </label>
+            </div>
+
+            <div id="setup-notice-fields">
+                <h2>案内設定</h2>
+                <div class="form-group">
+                    <label>初回設定サポート案内開始日</label>
+                    <input type="date" id="setupSupportStartDate" oninput="generate()">
+                </div>
+                <div class="form-group">
+                    <label>打刻認証方法</label>
+                    <div class="checkbox-group" style="display:flex; gap:20px; background:#e6f2ff; padding:10px; border-radius:4px;">
+                        <label class="checkbox-item">
+                            <input type="checkbox" id="authChameleon" checked onchange="generate()"> カメレオンコード
+                        </label>
+                        <label class="checkbox-item">
+                            <input type="checkbox" id="authPalm" onchange="generate()"> 手のひら静脈
+                        </label>
+                    </div>
+                </div>
+                <h2>評価期間設定</h2>
+                <div class="row">
+                    <div class="form-group"><label>評価開始日</label><input type="date" id="setupTrialStart" oninput="generate()"></div>
+                    <div class="form-group"><label>評価終了日</label><input type="date" id="setupTrialEnd" oninput="generate()"></div>
+                </div>
+            </div>
+
+            <div id="setup-reply-fields" class="hidden">
+                <h2>実施日時</h2>
+                <div class="row">
+                    <div class="form-group"><label>サポート実施日</label><input type="date" id="setupMatchDate" oninput="generate()"></div>
+                    <div class="form-group"><label>開始時間</label><input type="time" id="setupMatchStartTime" value="10:00" oninput="generate()"></div>
+                    <div class="form-group"><label>終了時間</label><input type="time" id="setupMatchEndTime" value="11:00" oninput="generate()"></div>
+                </div>
+                <div class="form-group">
+                    <label>打ち合わせ方法</label>
+                    <select id="setupMethod" onchange="generate()">
+                        <option value="Zoom" selected>Zoom</option>
+                        <option value="お電話">お電話</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+
+        <div id="panel-vup-common" class="hidden">
+            <h2>実施日時</h2>
+            <div class="form-group">
+                <label>実施日</label>
+                <input type="date" id="vupDate" oninput="generate()">
+            </div>
+            <div class="row">
+                <div class="form-group">
+                    <label>開始時間</label>
+                    <input type="time" id="vupStartTime" value="13:00" oninput="generate()">
+                </div>
+                <div class="form-group" id="vupEndTimeGroup">
+                    <label>終了時間</label>
+                    <input type="time" id="vupEndTime" value="16:00" oninput="generate()">
+                </div>
+            </div>
+            <div class="form-group">
+                <label>オンラインヘルプタイトル</label>
+                <input type="text" id="vupHelpTitle" oninput="generate()">
+            </div>
+            <div class="form-group" id="vup-help-url-group">
+                <label>オンラインヘルプURL</label>
+                <input type="text" id="vupHelpUrl" oninput="generate()">
+            </div>
+        </div>
+
+        <div id="panel-vup-maintenance" class="hidden">
+            <div id="vup-total-options">
+                <h2>出力項目の選択</h2>
+                <div class="app-layout-box" style="padding: 10px; border-radius: 4px;">
+                    <div class="checkbox-item" style="margin-top: 10px;">
+                        <input type="checkbox" id="vupShowAdmin" checked onchange="generate()"> ① 管理画面
+                    </div>
+                    
+                    <div class="checkbox-item">
+                        <input type="checkbox" id="vupShowTR" checked onchange="toggleTRSubOptions(); generate();"> ② タイムレコーダー機能
+                    </div>
+                    
+                    <div id="tr-sub-options" class="sub-checkbox-group">
+                        <label class="sub-checkbox-item"><input type="checkbox" id="vupTR_Win" checked onchange="generate()"> 1) Windowsデスクトップ版タイムレコーダー</label>
+                        <label class="sub-checkbox-item"><input type="checkbox" id="vupTR_My" checked onchange="generate()"> 2) Myレコーダー</label>
+                        <label class="sub-checkbox-item"><input type="checkbox" id="vupTR_Mobile" checked onchange="generate()"> 3) 携帯ブラウザ打刻</label>
+                        <label class="sub-checkbox-item"><input type="checkbox" id="vupTR_Ipad" checked onchange="generate()"> 4) iPad版タイムレコーダー</label>
+                        <label class="sub-checkbox-item"><input type="checkbox" id="vupTR_Pit" checked onchange="generate()"> 5) ピットタッチ・プロ</label>
+                    </div>
+                    
+                    <div class="checkbox-item" style="margin-top: 10px;">
+                        <input type="checkbox" id="vupShowPrint" checked onchange="generate()"> ③ 印刷アプリ
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="panel-vup-app" class="hidden">
+            <h2>バージョンアップ</h2>
+            <div class="app-layout-box">
+                <div class="app-group-title">【Windows版】</div>
+                
+                <div class="app-row">
+                    <label class="app-label">
+                        <input type="checkbox" id="appWin_Cham" checked onchange="toggleAppInputFields(); generate();"> カメレオンコード
+                    </label>
+                    <div class="app-input-wrap" id="wrap_Win_Cham">
+                        <input type="text" id="verWin_Cham" placeholder="2.1.0" oninput="generate()">
+                    </div>
+                </div>
+                
+                <div class="app-row">
+                    <label class="app-label">
+                        <input type="checkbox" id="appWin_Palm" checked onchange="toggleAppInputFields(); generate();"> 手のひら静脈認証
+                    </label>
+                    <div class="app-input-wrap" id="wrap_Win_Palm">
+                        <input type="text" id="verWin_Palm" placeholder="2.1.0" oninput="generate()">
+                    </div>
+                </div>
+                <hr style="border: 0; border-top: 1px dashed #ccc; margin: 10px 0;">
+                <div class="app-group-title">【iPad版】</div>
+                
+                <div class="app-row">
+                    <label class="app-label">
+                        <input type="checkbox" id="appIpad_Cham" checked onchange="toggleAppInputFields(); generate();"> カメレオンコード
+                    </label>
+                    <div class="app-input-wrap" id="wrap_Ipad_Cham">
+                        <input type="text" id="verIpad_Cham" placeholder="2.1.0" oninput="generate()">
+                    </div>
+                </div>
+            </div>
+
+            <h2>バージョンアップ内容</h2>
+            <div class="form-group">
+                <textarea id="vupAppContent" style="height: 100px;" placeholder="・ログインパスワードのアプリ内保持方式の変更" oninput="generate()"></textarea>
+            </div>
+        </div>
+
+        <div id="panel-holiday" class="hidden">
+            <h2>対象年度設定</h2>
+            <div class="form-group">
+                <label>対象の年度（西暦を数字4桁で入力・変更可能）</label>
+                <input type="text" id="holidayYearInput" maxlength="4" placeholder="2027" oninput="generate()">
+            </div>
+        </div>
+
+        <div id="panel-vacation" class="hidden">
+            <h2>休暇種別</h2>
+            <div class="form-group">
+                <select id="vacationType" onchange="updateVacationSchedule(); generate()">
+                    <option value="年末年始" selected>年末年始</option>
+                    <option value="ゴールデンウィーク">ゴールデンウィーク</option>
+                    <option value="お盆">お盆</option>
+                </select>
+            </div>
+            <h2>営業時間連絡</h2>
+            <div class="form-group">
+                <label>該当期間の営業時間スケジュール</label>
+                <textarea id="vacationSchedule" style="height: 130px;" oninput="generate()"></textarea>
+            </div>
+            <h2>順次対応の再開日時（カレンダーから選択）</h2>
+            <div class="form-group">
+                <label>対応再開日時</label>
+                <input type="date" id="vacationResumeDate" oninput="generate()">
+            </div>
+        </div>
+    </div>
+
+    <div class="output-panel">
+        
+        <label>件名</label>
+        <div class="subject-wrap">
+            <input type="text" id="output-subject" readonly>
+            <button class="copy-sub-btn" onclick="copySubject()">件名をコピー</button>
+        </div>
+
+        <label>本文</label>
+        <textarea id="output" readonly></textarea>
+        <button class="copy-btn" onclick="copyText()">本文をコピー</button>
+    </div>
+</div>
+
+<script>
+function getUnifiedSignature(name, omitNameOnly = false) {
+    const targetName = name || "[自分の名前]";
+    let content = "";
+    
+    if (!omitNameOnly) {
+       content += `勤給解決 サポートセンター ${targetName}\n`;
+    }
+    content += `━━━━━━━━━━━━━━━━━━━━━━━\n`;
+    content += `勤怠管理クラウドシステム「勤給解決」\n`;
+    content += `サポートセンター\n`;
+    content += `営業時間： 9:30-12:00 13:00-17:30\n`;
+    content += `休業日： 土日祝日及び弊社休業日\n`;
+    content += `TEL  ： 03-4570-8552\n`;
+    content += `MAIL ： saas_support@shift-2005.co.jp\n`;
+    content += `FAQ  ： http://help.cckintai.com/shift/kinkyu/\n`;
+    content += `━━━━━━━━━━━━━━━━━━━━━━━`;
+    return content;
+}
+
+// 前回のタブをlocalStorageから取得、初回は'newopen'をデフォルト
+let currentTab = localStorage.getItem('kinkyu-activeTab') || 'newopen';
+
+function toggleSetupFields() {
+    const typeEl = document.querySelector('input[name="setupType"]:checked');
+    if (!typeEl) return;
+    const type = typeEl.value;
+    document.getElementById('setup-notice-fields').classList.toggle('hidden', type !== 'notice');
+    document.getElementById('setup-reply-fields').classList.toggle('hidden', type !== 'reply');
+}
+
+function toggleVupFields() {
+    // no-op: vup tab is now split into separate maintenance and app update tabs.
+}
+
+function toggleTRSubOptions() {
+    const showTR = document.getElementById('vupShowTR') ? document.getElementById('vupShowTR').checked : true;
+    const subGroup = document.getElementById('tr-sub-options');
+    if (subGroup) {
+        subGroup.classList.toggle('hidden', !showTR);
+    }
+}
+
+function toggleAppInputFields() {
+    const cWinCham = document.getElementById('appWin_Cham').checked;
+    const cWinPalm = document.getElementById('appWin_Palm').checked;
+    const cIpadCham = document.getElementById('appIpad_Cham').checked;
+
+    document.getElementById('wrap_Win_Cham').style.visibility = cWinCham ? 'visible' : 'hidden';
+    document.getElementById('wrap_Win_Palm').style.visibility = cWinPalm ? 'visible' : 'hidden';
+    document.getElementById('wrap_Ipad_Cham').style.visibility = cIpadCham ? 'visible' : 'hidden';
+}
+
+function updateStaffVisibility() {
+    // ヘッダーパネルで実施されるようになったため、基本情報セクションの非表示処理は不要
+}
+
+function switchTab(tabName) {
+    currentTab = tabName;
+    // localStorageにアクティブなタブを保存
+    localStorage.setItem('kinkyu-activeTab', tabName);
+    
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    const targetTab = document.querySelector(`.tab[data-tab="${tabName}"]`);
+    if (targetTab) targetTab.classList.add('active');
+
+    const tabMapping = {
+        'newopen': '新規開設',
+        'renew': 'ライセンス追加',
+        'setup': '初回設定',
+        'holiday': '祝日設定',
+        'vacation': '長期休暇通知',
+        'vup-maintenance': 'メンテナンス',
+        'vup-app': 'バージョンアップ'
+    };
+
+    document.getElementById('panel-newopen').classList.toggle('hidden', tabName !== 'newopen');
+    document.getElementById('panel-renew').classList.toggle('hidden', tabName !== 'renew');
+    document.getElementById('panel-setup').classList.toggle('hidden', tabName !== 'setup');
+    document.getElementById('panel-vup-common').classList.toggle('hidden', !(tabName === 'vup-maintenance' || tabName === 'vup-app'));
+    document.getElementById('panel-vup-maintenance').classList.toggle('hidden', tabName !== 'vup-maintenance');
+    document.getElementById('panel-vup-app').classList.toggle('hidden', tabName !== 'vup-app');
+    document.getElementById('panel-holiday').classList.toggle('hidden', tabName !== 'holiday');
+    document.getElementById('panel-vacation').classList.toggle('hidden', tabName !== 'vacation');
+    document.getElementById('vupEndTimeGroup').classList.toggle('hidden', tabName === 'vup-app');
+
+    updateStaffVisibility();
+    if(tabName === 'setup') {
+        toggleSetupFields();
+    }
+
+    generate();
+}
+
+function updateVacationSchedule() {
+    const vacType = document.getElementById('vacationType').value;
+    const vScheduleEl = document.getElementById('vacationSchedule');
+    if (!vScheduleEl) return;
+
+    const currentYear = new Date().getFullYear();
+    const nextYear = currentYear + 1;
+    const formatDate = (year, month, day) => {
+        const date = new Date(year, month - 1, day);
+        const days = ["日", "月", "火", "水", "木", "金", "土"];
+        return `${month}月${day}日（${days[date.getDay()]}）`;
+    };
+
+    if (vacType === '年末年始' || vacType === 'お盆' || vacType === 'ゴールデンウィーク') {
+        if (vacType === '年末年始') {
+            vScheduleEl.value = `■${currentYear}年\n　${formatDate(currentYear, 12, 25)} 通常営業（9:30～12:00/13:00～17:30）\n　${formatDate(currentYear, 12, 26)} 時短営業（9:30～13:00）\n　${formatDate(currentYear, 12, 27)}～ ${formatDate(currentYear, 12, 31)} 休業\n\n■${nextYear}年\n　${formatDate(nextYear, 1, 1)}～ ${formatDate(nextYear, 1, 4)} 休業\n　${formatDate(nextYear, 1, 5)} 時短営業（13:00～17:30）\n　${formatDate(nextYear, 1, 6)} 通常営業（9:30～12:00/13:00～17:30）`;
+        } else if (vacType === 'お盆') {
+            vScheduleEl.value = `${formatDate(currentYear, 8, 8)}　　　　　　　　　17：30まで\n${formatDate(currentYear, 8, 9)}～ ${formatDate(currentYear, 8, 17)} 休業\n${formatDate(currentYear, 8, 18)}　　　　　　　　　時短営業（13:00～17:30）\n\nお盆期間前後はお問い合わせが非常に多くなり、\n繋がりにくい場合がございます。\n設定面に関するご不明点がございました際は、\nお早めにご連絡いただけますと幸いです。`;
+        } else {
+            vScheduleEl.value = `${formatDate(currentYear, 4, 28)}　　　　　　　　　通常営業（9:30～12:00/13:00～17:30）\n${formatDate(currentYear, 4, 29)}　　　　　　　　　休業\n${formatDate(currentYear, 4, 30)}～ ${formatDate(currentYear, 5, 1)} 通常営業（9:30～12:00/13:00～17:30）\n${formatDate(currentYear, 5, 2)}～ ${formatDate(currentYear, 5, 6)} 休業\n${formatDate(currentYear, 5, 7)}　　　　　　　　　時短営業（13:00～17:30）`;
+        }
+        return;
+    }
+    
+    let scheduleText = "";
+    
+    if (vacType === '年末年始') {
+        scheduleText = `■2025年\n\u200012月25日（木） 通常営業（9:30～12:00/13:00～17:30）\n\u200012月26日（金） 時短営業（9:30～13:00）\n\u200012月27日（土）～ 31日（水） 休業\n\n■2026年\n\u20001月1日（木）～ 4日（日） 休業\n\u20001月5日（月） 時短営業（13:00～17:30）\n\u20001月6日（火） 通常営業（9:30～12:00/13:00～17:30）`;
+    } else if (vacType === 'お盆') {
+        scheduleText = `8月8日（火）\u3000\u3000\u3000\u3000\u3000\u3000\u3000\u3000\u3000\u300017：30まで\n8月9日（土）～ 8月17日（日）休業\n8月18日（月）\u3000\u3000\u3000\u3000\u3000\u3000\u3000\u3000\u3000\u3000時短営業（13:00～17:30）\n\nお盆期間前後はお問い合わせが非常に多くなり、\n繋がりにくい場合がございます。\n設定面に関するご不明点がございました際は、\nお早めにご連絡いただけますと幸いです。`;
+        scheduleText = scheduleText.replace('8月8日（火）', '8月8日（金）');
+    } else if (vacType === 'ゴールデンウィーク') {
+        scheduleText = `4月28日（火）\u3000\u3000\u3000\u3000\u3000\u3000\u3000\u3000通常営業（9:30～12:00/13:00～17:30）\n4月29日（水）\u3000\u3000\u3000\u3000\u3000\u3000\u3000\u3000休業\n4月30日（木）～ 5月01日（金）通常営業（9:30～12:00/13:00～17:30）\n5月02日（土）～ 5月06日（水）休業\n5月07日（木）\u3000\u3000\u3000\u3000\u3000\u3000\u3000\u3000時短営業（13:00～17:30）`;
+    }
+    
+    vScheduleEl.value = scheduleText;
+}
+
+function getDayOfWeek(dateStr) {
+    if(!dateStr) return "[曜日]";
+    const days = ["日", "月", "火", "水", "木", "金", "土"];
+    return days[new Date(dateStr).getDay()] + "曜日";
+}
+
+function formatJapanDate(dateStr) {
+    if (!dateStr) return "[リリース日(年/月/日)]";
+    const d = new Date(dateStr);
+    return `${d.getFullYear()}年${d.getMonth() + 1}月${d.getDate()}日`;
+}
+
+function formatJapanDateSlash(dateStr) {
+    if (!dateStr) return "[実施日(年/月/日)]";
+    const d = new Date(dateStr);
+    const mm = String(d.getMonth() + 1);
+    const dd = String(d.getDate());
+    return `${d.getFullYear()}/${mm}/${dd}`;
+}
+
+function formatMonthDay(dateStr, fallbackLabel) {
+    if (!dateStr) return fallbackLabel || "[月日]";
+    const d = new Date(dateStr);
+    return `${d.getMonth() + 1}月${d.getDate()}日`;
+}
+
+function formatResumeDate(dateStr) {
+    if (!dateStr) return "[対応再開日時]";
+    const d = new Date(dateStr);
+    const month = d.getMonth() + 1;
+    const day = d.getDate();
+    const days = ["日", "月", "火", "水", "木", "金", "土"];
+    const week = days[d.getDay()];
+    return `${month}月${day}日（${week}）`;
+}
+
+function generate() {
+    const val = (id) => {
+        const el = document.getElementById(id);
+        return el ? el.value : '';
+    };
+    const cComp = val('clientCompany') || "[相手先 会社名]";
+    const cStaff = val('clientStaff') || "[相手先 担当者名]";
+    const myName = val('myName') || "[自分の名前]";
+
+    let subject = "";
+    let mail = "";
+
+    if (currentTab === 'newopen') {
+        subject = `【株式会社シフト】勤給解決新規開設対応（${cComp}様）`;
+        const nMemo = val('newopenMemo') || "[開設依頼書の備考欄]";
+        mail = `田澁さん\n\nお疲れ様です。${myName}です。\n\n勤給解決で下記の新規開設の処理を行いました。\n\n◆${cComp}様\n${nMemo}\n\nご確認の程よろしくお願いいたします。\n\n`;
+        mail += getUnifiedSignature(myName, true);
+
+    } else if (currentTab === 'renew') {
+        subject = `【株式会社シフト】勤給解決ライセンス追加処理について（${cComp}様）`;
+        const tMemo = val('tashibuMemo') || "[開設依頼書の備考欄]";
+        mail = `田澁さん\n\nお疲れ様です。${myName}です。\n\n勤給解決で下記のライセンス追加処理を行いました。\n\n◆${cComp}様\n${tMemo}\n\nご確認の程よろしくお願いいたします。\n\n`;
+        mail += getUnifiedSignature(myName, true);
+
+    } else if (currentTab === 'setup') {
+        const typeEl = document.querySelector('input[name="setupType"]:checked');
+        const setupType = typeEl ? typeEl.value : 'notice';
+        
+        subject = `【勤給解決】無料トライアル 初回設定サポートのお知らせ`;
+
+        if (setupType === 'notice') {
+            const sDateRaw = val('setupSupportStartDate');
+            const sDate = formatMonthDay(sDateRaw, "[案内開始日]");
+            
+            const trialStartRaw = val('setupTrialStart');
+            const trialEndRaw = val('setupTrialEnd');
+            const trialStart = formatMonthDay(trialStartRaw, "[評価開始日]");
+            const trialEnd = formatMonthDay(trialEndRaw, "[評価終了日]");
+            
+            const isChameleon = document.getElementById('authChameleon') ? document.getElementById('authChameleon').checked : false;
+            const isPalm = document.getElementById('authPalm') ? document.getElementById('authPalm').checked : false;
+
+            mail = `${cComp}\n${cStaff}様\n\n`;
+            mail += `お世話になっております。\n`;
+            mail += `勤怠管理システム「勤給解決」サポートセンターでございます。\n\n`;
+            mail += `先ほどお送りいたしました「勤給解決」無料トライアルアカウントの\n`;
+            mail += `初期設定につきまして、Zoomまたはお電話にてサポートさせていただきます。\n\n`;
+            mail += `お手数ではございますが、下記リンクよりチェックシートをダウンロードいただき、\n`;
+            mail += `必要事項をご記入のうえ、ご返信くださいますようお願いいたします。\n`;
+            mail += `【勤給解決】設定サポート用チェックシート\n`;
+            mail += `ご返信を確認後、サポート担当より初期設定方法のご案内を行わせていただきます。\n\n`;
+            mail += `${sDate}以降の弊社営業日にて、ご都合のよい日時を2～3候補ほどお知らせいただけますと幸いです。\n`;
+            mail += `なお、所要時間は約1時間を予定しております。\n\n`;
+            mail += `【初期設定サポート希望日時】\n`;
+            mail += ` 第一希望 ：   月   日   ：   ～\n`;
+            mail += ` 第二希望 ：   月   日   ：   ～\n`;
+            mail += ` 第三希望 ：   月   日   ：   ～\n\n`;
+            mail += `------------------------------------------------------------\n`;
+            mail += `■ 評価期間について\n`;
+            mail += `------------------------------------------------------------\n\n`;
+            mail += `・評価期間は【${trialStart}～${trialEnd}】までとなります。\n\n`;
+            mail += `※ご評価は、上記期間内にお願いいたします。\n`;
+            mail += `　期間内に継続利用の可否についてご回答ください。\n`;
+            mail += `　評価終了日までにご回答をいただけない場合は、\n`;
+            mail += `　誠に恐れ入りますが、貴社アカウントをクローズさせていただきます。\n\n`;
+            mail += `------------------------------------------------------------\n`;
+            mail += `■ 操作マニュアル\n`;
+            mail += `------------------------------------------------------------\n\n`;
+            mail += `・クイックスタートガイド：https://c1.cckintai.com/support/manualfiles/cc_quickstart.pdf\n\n`;
+            mail += `・管理者マニュアル：http://c1.cckintai.com/support/manualfiles/cc_administrator_manual2.pdf\n\n`;
+            mail += `・従業員マニュアル：https://c1.cckintai.com/support/manualfiles/cc_employee_manual2.pdf\n\n`;
+            
+            if (isChameleon) {
+                mail += `------------------------------------------------------------\n`;
+                mail += `■ カメレオンコード認証について\n`;
+                mail += `------------------------------------------------------------\n\n`;
+                mail += `・「勤給解決 タイムレコーダーアプリケーションマニュアル」\n`;
+                mail += `https://c1.cckintai.com/support/manualfiles/cc_timerecordermanual.pdf\n\n`;
+                mail += `・「勤給解決 印刷アプリケーションマニュアル」\n`;
+                mail += `https://c1.cckintai.com/support/manualfiles/cc_printmanual.pdf\n\n`;
+                mail += `・「iPad版タイムレコーダーアプリマニュアル」\n`;
+                mail += `http://c1.cckintai.com/support/manualfiles/cc_timerecorder_ipad_manual.pdf\n\n`;
+            }
+            
+            if (isPalm) {
+                mail += `------------------------------------------------------------\n`;
+                mail += `■ 手のひら認証について\n`;
+                mail += `------------------------------------------------------------\n\n`;
+                mail += `・「勤給解決 手のひら認証タイムレコーダーアプリケーションマニュアル」\n`;
+                mail += `https://c1.cckintai.com/support/manualfiles/Palm_timerecordermanual.pdf\n\n`;
+            }
+            
+            mail += `------------------------------------------------------------\n`;
+            mail += `■ 注意事項\n`;
+            mail += `------------------------------------------------------------\n\n`;
+            mail += `「admin」権限でログインされた場合、すべての操作を行っていただけます。\n`;
+            mail += `設定・変更された内容は即時反映されますので、変更や削除を行う際には、十分にご確認のうえ操作をお願いいたします。\n`;
+            mail += `なお、評価期間内に作成されたデータは、導入後も引き続きご利用いただけます。\n\n`;
+            mail += `操作や設定等でご不明な点がございましたら、\n`;
+            mail += `お気兼ねなく弊社サポートセンターまでお問い合わせください。\n\n`;
+            mail += `以上、お手数をおかけしますが、\n`;
+            mail += `どうぞよろしくお願い申し上げます。\n\n`;
+            mail += getUnifiedSignature(myName, true);
+        } else {
+            const mDateRaw = val('setupMatchDate');
+            const mMonth = mDateRaw ? String(new Date(mDateRaw).getMonth() + 1) : "[月]";
+            const mDay = mDateRaw ? String(new Date(mDateRaw).getDate()) : "[日]";
+            const mWeek = mDateRaw ? `（${getDayOfWeek(mDateRaw)}）` : "[曜日]";
+            const mStart = val('setupMatchStartTime') || "[開始時間]";
+            const mEnd = val('setupMatchEndTime') || "[終了時間]";
+            const method = val('setupMethod');
+            
+            const isChameleon = document.getElementById('authChameleon') ? document.getElementById('authChameleon').checked : false;
+            
+            let itemNum = 1;
+			
+            mail = `${cComp}\n${cStaff}様\n\n`;
+            mail += `いつもお世話になっております。\n`;
+            mail += `勤給解決サポートセンターの${myName}でございます。\n\n`;
+            mail += `ご返信いただきましてありがとうございます。\n`;
+            mail += `初期設定サポートの日時につきまして、\n`;
+            mail += `${mMonth}月${mDay}日${mWeek} ${mStart} ～ ${mEnd} にて、\n`;
+            mail += `【${method}】で打ち合わせを実施予定でございます。\n\n`;
+            mail += `所要時間は約1時間を予定しておりますが、\n`;
+            mail += `内容によっては時間が前後する場合がございます。あらかじめご了承ください。\n\n`;
+            mail += `万が一、時間超過によりご都合が悪くなる場合は、\n`;
+            mail += `当日のお打ち合わせ内にて、別日時での再調整／そのまま継続をご相談させていただく想定です。\n\n`;
+            mail += `当日のご案内内容につきましては、\n`;
+            mail += `クイックスタートガイドに沿って、実際に従業員様を1名ご作成いただき、\n`;
+            mail += `打刻が行える状態になるまでのサポートを予定しております。\n\n`;
+            mail += `------------------------------------------------------------\n`;
+            mail += `■ 事前にご準備いただきたい内容\n`;
+            mail += `------------------------------------------------------------\n\n`;
+            
+            mail += `${itemNum}）クイックスタートガイドのご一読\n`;
+            mail += ` → https://c1.cckintai.com/support/manualfiles/cc_quickstart.pdf\n\n`;
+            itemNum++;
+
+            if (isChameleon) {
+                mail += `${itemNum}）従業員様のカメレオンコードを印刷できる環境のご準備\n`;
+                mail += ` → 勤給解決をご利用のパソコンでカラー印刷が可能であれば問題ございません。\n\n`;
+                itemNum++;
+            }
+
+            mail += `${itemNum}）打刻に使用する【パソコン／iPad】のご準備\n`;
+            mail += ` → メールの受信が可能な状態ですと、スムーズにご案内が進められます。\n\n`;
+            mail += `   iPadをご利用の場合、事前にApple IDを取得して、\n`;
+            mail += `   App Storeでログインを済ませておいていただくようお願いいたします。\n\n`;
+            mail += `------------------------------------------------------------\n\n`;
+            if (method === 'Zoom') {
+                mail += `ZoomURLについては別途ご案内いたします。\n`;
+                mail += `当日はZoomへアクセス可能なパソコンなどをご用意の上、URLからご参加ください。\n\n`;
+            } else {
+                mail += `当日、お時間になりましたら、ご指定の電話番号へ発信いたします。\n\n`;
+            }
+            mail += `事前に上記内容につきましてご協力いただけますと幸いです。\n`;
+            mail += `何卒よろしくお願いいたします。\n\n`;
+            mail += getUnifiedSignature(myName, false);
+        }
+
+    } else if (currentTab === 'vup-maintenance' || currentTab === 'vup-app') {
+        const vupType = (currentTab === 'vup-app') ? 'app' : 'total';
+        
+        const vDateRaw = val('vupDate');
+        const startTime = val('vupStartTime') || "[時間]";
+        const helpTitle = val('vupHelpTitle') || "[オンラインヘルプタイトル]";
+        const helpUrl = val('vupHelpUrl') || "[オンラインヘルプURL]";
+
+        if (vupType === 'total') {
+            const vDateFormatted = formatJapanDate(vDateRaw);
+            const vDateSlash = formatJapanDateSlash(vDateRaw);
+            const vDayShort = vDateRaw ? `（${getDayOfWeek(vDateRaw).replace('曜日','')}）` : "[曜日]";
+            const endTime = val('vupEndTime') || "[終了時間]";
+
+            const showTR = document.getElementById('vupShowTR') ? document.getElementById('vupShowTR').checked : true;
+            const showPrint = document.getElementById('vupShowPrint') ? document.getElementById('vupShowPrint').checked : true;
+
+            subject = `バージョンアップと、これ伴うメンテナンスについて（${vDateFormatted}）`;
+            
+            mail = `※このメールは「勤給解決」をご利用のお客様及び\n`;
+            mail += `　トライアル中のお客様と代理店様に配信しております。\n\n`;
+            mail += `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n`;
+            mail += `         　　　　「勤給解決」お知らせメール\n\n`;
+            mail += `    　　バージョンアップと、これに伴うメンテナンスについて\n\n`;
+            mail += `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n`;
+            mail += `%COMPANY%\n`;
+            mail += `%NAME%様\n\n`;
+            mail += `いつも勤怠管理クラウドシステム「勤給解決」をご利用いただき、\n`;
+            mail += `誠にありがとうございます。\n\n`;
+            mail += `バージョンアップに伴い、以下のスケジュールでシステムメンテナンスを実施いたします。\n\n`;
+            mail += `------------------------------------------------------------\n`;
+            mail += `■ メンテナンス日時\n`;
+            mail += `------------------------------------------------------------\n\n`;
+            mail += `${vDateSlash}${vDayShort} ${startTime} ～ ${endTime}\n\n`;
+            mail += `上記時間帯は、一部機能がご利用いただけなくなります。\n`;
+            mail += `ご不便をおかけいたしますが、何卒ご了承くださいますようお願い申し上げます。\n\n`;
+
+            mail += `------------------------------------------------------------\n`;
+            mail += `■ アップデート内容\n`;
+            mail += `------------------------------------------------------------\n\n`;
+			mail += `アップデート予定の内容につきましては、下記のオンラインヘルプをご参照ください。\n`;
+			mail += `${helpTitle}\n`;
+			mail += `${helpUrl}\n\n`;
+
+			const showAdmin = document.getElementById('vupShowAdmin') ? document.getElementById('vupShowAdmin').checked : true;
+			if (showAdmin) {
+                mail += `------------------------------------------------------------\n`;
+                mail += `■ 管理画面へのログインについて\n`;
+                mail += `------------------------------------------------------------\n\n`;
+			    mail += `メンテナンス中は、「勤給解決」の管理画面へログインすることができません。\n`;
+			    mail += `なお、該当時間帯に管理画面へアクセスされている場合、通信が遮断されることがあります。\n\n`;
+			    mail += `お手数をおかけいたしますが、メンテナンス終了後に再度ログインをお願いいたします。\n\n`;
+			}
+
+			if (showTR) {
+                const trWin = document.getElementById('vupTR_Win') ? document.getElementById('vupTR_Win').checked : true;
+                const trMy = document.getElementById('vupTR_My') ? document.getElementById('vupTR_My').checked : true;
+                const trMobile = document.getElementById('vupTR_Mobile') ? document.getElementById('vupTR_Mobile').checked : true;
+                const trIpad = document.getElementById('vupTR_Ipad') ? document.getElementById('vupTR_Ipad').checked : true;
+                const trPit = document.getElementById('vupTR_Pit') ? document.getElementById('vupTR_Pit').checked : true;
+
+                if (trWin || trMy || trMobile || trIpad || trPit) {
+                    mail += `------------------------------------------------------------\n`;
+                    mail += `■ 打刻アプリケーションの機能について\n`;
+                    mail += `------------------------------------------------------------\n\n`;
+                    mail += `メンテナンス中にご利用いただける機能は、タイムレコーダーの種類によって異なります。\n`;
+                    mail += `以下をご確認ください。\n\n`;
+
+                    if (trWin) {
+                        mail += `▽ Windowsデスクトップ版タイムレコーダー\n`;
+                        mail += `Windows PCに専用アプリケーションをインストールして利用するタイムレコーダーです。\n`;
+                        mail += `認証リーダー（カメレオンコード認証、手のひら静脈認証）による打刻のほか、パスワード認証での打刻が可能です。\n`;
+                        mail += `·メンテナンス中も、タイムレコーダーの起動および打刻は可能です。\n`;
+                        mail += `·打刻データはPCに一時保存され、メンテナンス終了後にサーバーへ送信されます。\n`;
+                        mail += `·打刻以外の機能（タイムカード表示、認証登録、ヘルプ登録など）はご利用いただけません。\n\n`;
+                    }
+                    if (trMy) {
+                        mail += `▽ Myレコーダー\n`;
+                        mail += `スマートフォンまたはPCのブラウザでご利用いただけるレコーダーです。\n`;
+                        mail += `·打刻データはブラウザに一時保存され、メンテナンス終了後にサーバーへ送信されます。\n`;
+                        mail += `·打刻以外の機能（タイムカード表示など）はご利用いただけません。\n`;
+                        mail += `【注意】\n`;
+                        mail += `メンテナンス時間中に新たに起動することはできません。\n`;
+                        mail += `打刻を行う場合は、メンテナンス開始前にタイムレコーダーを起動してください。\n\n`;
+                    }
+                    if (trMobile) {
+                        mail += `▽ 携帯ブラウザ打刻\n`;
+                        mail += `携帯電話から個人ごとの打刻URLへアクセスし、クリック打刻を行うレコーダーです。\n`;
+                        mail += `·打刻データはブラウザに一時保存され、メンテナンス終了後にサーバーへ送信されます。\n`;
+                        mail += `·打刻以外の機能（タイムカード表示など）はご利用いただけません。\n\n`;
+                    }
+                    if (trIpad) {
+                        mail += `▽ iPad版タイムレコーダー\n`;
+                        mail += `iPadに専用アプリケーションをインストールし、カメレオンコード認証を行うタイムレコーダーです。\n`;
+                        mail += `·打刻データは端末に一時保存され、メンテナンス終了後にサーバーへ送信されます。\n`;
+                        mail += `·「環境設定」メニューより、以下の操作が行えなくなります。\n`;
+                        mail += ` ‐ 従業員データおよび各種設定の同期\n`;
+                        mail += ` ‐ 接続文字列の再入力\n`;
+                        mail += ` ‐ タイムカードの参照\n\n`;
+                    }
+                    if (trPit) {
+                        mail += `▽ ピットタッチ·プロ\n`;
+                        mail += `ICカードで打刻を行う、打刻専用端末です。\n`;
+                        mail += `·打刻データは端末に一時保存され、メンテナンス終了後にサーバーへ送信されます。\n\n`;
+                    }
+                }
+            }
+            
+            if (showPrint) {
+                mail += `------------------------------------------------------------\n`;
+                mail += `■ 印刷アプリケーションについて\n`;
+                mail += `------------------------------------------------------------\n\n`;
+                mail += `メンテナンス中は、すべての機能をご利用いただけません。\n\n`;
+            }
+            
+            mail += `ご不便をおかけいたしますが、何卒ご了承くださいますようお願い申し上げます。\n\n`;
+            mail += `ご不明な点がございましたら、オンラインヘルプをご確認いただくか、\n下記サポートセンターまでお問い合わせください。\n\n`;
+            mail += `＜勤給解決オンラインヘルプ＞\nhttp://help.cckintai.com/shift/kinkyu/\n\n`;
+            mail += `今後とも、当システムをご愛顧賜りますよう、\nよろしくお願い申し上げます。\n\n`;
+            mail += getUnifiedSignature(myName, true);
+        } else {
+            if (vDateRaw) {
+                const d = new Date(vDateRaw);
+                const yy = d.getFullYear();
+                const mm = String(d.getMonth() + 1);
+                const dd = String(d.getDate());
+                subject = `【勤給解決】タイムレコーダーアプリアップデートのお知らせ（${yy}年${mm}月${dd}日）`;
+            } else {
+                subject = `【勤給解決】タイムレコーダーアプリアップデートのお知らせ（[リリース日(年/月/日)]）`;
+            }
+
+            const appContent = val('vupAppContent') || "[アップデート内容]";
+            const vDateText = vDateRaw ? formatJapanDate(vDateRaw) : "[リリース日]";
+            const vDayText = getDayOfWeek(vDateRaw);
+
+            const cWinCham = document.getElementById('appWin_Cham').checked;
+            const cWinPalm = document.getElementById('appWin_Palm').checked;
+            const cIpadCham = document.getElementById('appIpad_Cham').checked;
+
+            const verWinCham = val('verWin_Cham') || "[新バージョン]";
+            const verWinPalm = val('verWin_Palm') || "[新バージョン]";
+            const verIpadCham = val('verIpad_Cham') || "[新バージョン]";
+
+            mail = `※このメールは「勤給解決」をご利用のお客様及び\n`;
+            mail += `　トライアル中のお客様と代理店様に配信しております。\n\n`;
+            mail += `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n`;
+            mail += `      　　　　  タイムレコーダーアプリケーション\n`;
+            mail += `          　　　　　アップデートのお知らせ\n`;
+            mail += `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n`;
+            mail += `%COMPANY%\n`;
+            mail += `%NAME% 様\n\n`;
+            mail += `いつも勤怠管理システム「勤給解決」をご利用いただき、\n`;
+            mail += `誠にありがとうございます。\n\n`;
+            mail += `下記の内容にて、タイムレコーダーアプリのアップデートを実施いたします。\n\n`;
+
+            const anyChecked = (cWinCham || cWinPalm || cIpadCham);
+
+            if (anyChecked) {
+                mail += `------------------------------------------------------------\n`;
+                mail += `■ アップデート対象\n`;
+                mail += `------------------------------------------------------------\n\n`;
+                if (cWinCham)  mail += `·【Windows版】\n　タイムレコーダーアプリケーション\n\n`;
+                if (cIpadCham) mail += `·【iPad版】\n　タイムレコーダーアプリケーション\n\n`;
+                if (cWinPalm)  mail += `·【手のひら認証】\n　タイムレコーダーアプリケーション\n\n`;
+
+                mail += `------------------------------------------------------------\n`;
+                mail += `■ リリースバージョン\n`;
+                mail += `------------------------------------------------------------\n\n`;
+                if (cWinCham)  mail += `·【Windows版】\n　タイムレコーダーアプリケーション ${verWinCham}\n\n`;
+                if (cIpadCham) mail += `·【iPad版】\n　タイムレコーダーアプリケーション ${verIpadCham}\n\n`;
+                if (cWinPalm)  mail += `·【手のひら認証】\n　タイムレコーダーアプリケーション ${verWinPalm}\n\n`;                
+                mail += `※上記が最新バージョンとなります。\n\n`;
+            }
+
+            mail += `------------------------------------------------------------\n`;
+            mail += `■ リリース日時\n`;
+            mail += `------------------------------------------------------------\n\n`;
+            mail += `${vDateText}（${vDayText}）${startTime}（予定）\n\n`;
+
+            if (anyChecked) {
+                mail += `------------------------------------------------------------\n`;
+                mail += `■ アップデート方法\n`;
+                mail += `------------------------------------------------------------\n\n`;
+                
+                let methodsOutput = [];
+
+                if (cWinCham) {
+                    let winText = `【Windows版】\n　タイムレコーダーアプリケーション\n\n`;
+                    winText += `上記日時以降にアプリケーションを起動すると、\n`;
+                    winText += `バージョンアップ開始画面が表示されます。\n`;
+                    winText += `表示されるメッセージに従い、バージョンアップを実施してください。\n\n`;
+                    methodsOutput.push(winText);
+                }
+                
+                if (cIpadCham) {
+                    let ipadText = `【iPad版】\n　タイムレコーダー\n\n`;
+                    ipadText += `App Storeに最新版のアプリケーションが公開されますので、\n`;
+                    ipadText += `アップデートを行っていただきますようお願いいたします。\n\n`;
+                    methodsOutput.push(ipadText);
+                }
+                
+                if (cWinPalm) {
+                    let palmText = `【手のひら認証】\n　タイムレコーダーアプリケーション\n\n`;
+                    palmText += `上記日時以降にアプリケーションを起動すると、\n`;
+                    palmText += `バージョンアップ開始画面が表示されます。\n`;
+                    palmText += `表示されるメッセージに従い、バージョンアップを実施してください。\n\n`;
+                    methodsOutput.push(palmText);
+                }
+            mail += methodsOutput.join('\n');
+            }
+            mail += `------------------------------------------------------------\n`;
+            mail += `■ アップデート内容\n`;
+            mail += `------------------------------------------------------------\n\n`;
+            mail += `${appContent}\n\n`;
+            mail += `以上でございます。\n\n`;
+            mail += getUnifiedSignature(myName, true);
+        }
+
+    } else if (currentTab === 'holiday') {
+        const hYear = val('holidayYearInput') || "[対象の年度(西暦)]";
+        subject = `【勤給解決】${hYear}年 祝日登録のお知らせ`;
+        mail = `※このメールは「勤給解決」をご利用のお客様及び\n`;
+        mail += `　トライアル中のお客様と代理店様に配信しております。\n\n`;
+        mail += `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n`;
+        mail += `　　　　　　　　　　${hYear}年 祝日登録について\n`;
+        mail += `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n`;
+        mail += `%COMPANY%\n`;
+        mail += `%NAME%様\n\n`;
+        mail += `いつも勤怠管理システム「勤給解決」をご利用いただき、\n`;
+        mail += `誠にありがとうございます。\n\n`;
+        mail += `${hYear}年の祝日設定につきましてご連絡いたします。\n`;
+        mail += `${hYear}年分の祝日が確定いたしましたので、システムへの登録を完了いたしました。\n`;
+        mail += `つきましては、下記の内容をご確認の上、\n`;
+        mail += `祝日登録のご対応をお願いいたします。\n\n`;
+        mail += `------------------------------------------------------------\n`;
+        mail += `■ 日本の祝日自動登録設定をご利用のお客様\n`;
+        mail += `------------------------------------------------------------\n\n`;
+        mail += `日本の祝日自動登録設定をご利用中のお客様につきましては、\n`;
+        mail += `${hYear}年分の祝日が3月1日に自動登録されます。\n`;
+        mail += `現在の設定内容は、以下の手順よりご確認いただけます。\n\n`;
+        mail += `設定 ＞ その他 ＞ 祝日設定 を開き、\n`;
+        mail += `［日本の祝日自動登録設定］をご確認ください。\n\n`;
+        mail += `------------------------------------------------------------\n`;
+        mail += `■ 会社独自の祝日、または手動で祝日を設定されているお客様\n`;
+        mail += `------------------------------------------------------------\n\n`;
+        mail += `会社独自の祝日、または手動で日本の祝日を設定されているお客様につきましては、\n`;
+        mail += `以下の手順にて祝日の登録をお願いいたします。\n\n`;
+        mail += `設定 ＞ その他 ＞ 祝日設定 を開き、\n`;
+        mail += `［＋新規登録］または［日本の祝日登録］よりご登録ください。\n\n`;
+        mail += `※本設定は、全権管理者様または\n`;
+        mail += `「オプション」の「閲覧·編集」権限をお持ちの一般管理者様のみ操作可能です。\n\n`;
+        mail += `------------------------------------------------------------\n`;
+        mail += `■ 参考\n`;
+        mail += `------------------------------------------------------------\n\n`;
+        mail += `Q.「祝日設定」の設定方法（日本の祝日、会社独自の祝日）\n`;
+        mail += `http://help.cckintai.com/shift/kinkyu/Detail.aspx?id=2098\n\n`;
+        mail += `以上でございます。\n\n`;
+        mail += `ご不明な点がございましたら、オンラインヘルプをご確認いただくか、\n`;
+        mail += `下記サポートセンターまでお問い合わせください。\n\n`;
+        mail += `今後とも、当システムをご愛顧賜りますよう、\n`;
+        mail += `よろしくお願い申し上げます。\n\n`;
+        mail += getUnifiedSignature(myName, true);
+
+    } else if (currentTab === 'vacation') {
+        const vacType = val('vacationType') || "[年末年始／ゴールデンウィーク／お盆]";
+        const vSchedule = val('vacationSchedule') || "[該当期間の営業時間スケジュール]";
+        const vResumeRaw = val('vacationResumeDate');
+        const vResumeText = formatResumeDate(vResumeRaw);
+
+        subject = `【勤給解決】${vacType}期間中のサポート対応について`;
+        mail = `※このメールは「勤給解決」をご利用のお客様及び\n`;
+        mail += `　トライアル中のお客様と代理店様に配信しております。\n\n`;
+        mail += `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n`;
+        mail += `　　　　　　　${vacType}期間中のサポート対応について\n`;
+        mail += `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n`;
+        mail += `%COMPANY%\n`;
+        mail += `%NAME%様\n\n`;
+        mail += `いつも勤怠管理システム「勤給解決」をご利用いただき、\n`;
+        mail += `誠にありがとうございます。\n\n`;
+        mail += `【${vacType}】期間中の\n`;
+        mail += `サポートセンターの営業日および営業時間についてご案内いたします。\n\n`;
+        mail += `------------------------------------------------------------\n`;
+        mail += `■ ${vacType}期間中の営業時間\n`;
+        mail += `------------------------------------------------------------\n\n`;
+        mail += `${vSchedule}\n\n`;
+        mail += `------------------------------------------------------------\n\n`;
+        mail += `お電話でのサポートをご希望のお客様は、\n`;
+        mail += `営業時間にご注意くださいますようお願いいたします。\n\n`;
+        mail += `休業期間中にお問い合わせフォームよりいただいたご質問につきましては、\n`;
+        mail += `${vResumeText} 9:30以降、順次対応いたします。\n\n`;
+        mail += `※弊社休業期間中も、管理画面およびタイムレコーダー等のシステムは\n`;
+        mail += `　通常どおりご利用いただけます。\n\n`;
+        mail += `以上でございます。\n\n`;
+        mail += getUnifiedSignature(myName, true);
+    }
+
+    const subEl = document.getElementById('output-subject');
+    const outEl = document.getElementById('output');
+    if(subEl) subEl.value = subject;
+    if(outEl) outEl.value = mail;
+}
+
+function copySubject() {
+    const subjectInput = document.getElementById('output-subject');
+    if(!subjectInput) return;
+    subjectInput.select();
+    document.execCommand('copy');
+    alert('件名をコピーしました。');
+}
+
+// ページロード時に保存されたタブを自動復元
+window.addEventListener('DOMContentLoaded', function() {
+    const savedTab = localStorage.getItem('kinkyu-activeTab');
+    if (savedTab && savedTab !== 'newopen') {
+        switchTab(savedTab);
+    } else {
+        // 初回アクセス時は generate() を呼び出す
+        generate();
+    }
+});
+
+function copyText() {
+    const textareEl = document.getElementById('output');
+    if(!textareEl) return;
+    const plainText = textareEl.value;
+    const checklistLabel = '【勤給解決】設定サポート用チェックシート';
+    const checklistUrl = 'https://c1.cckintai.com/support/manualfiles/【勤給解決】設定サポート用チェックシート.zip';
+    const escapeHtml = (text) => text.replace(/[&<>"']/g, (character) => ({
+        '&': '&amp;',
+        '<': '&lt;',
+        '>': '&gt;',
+        '"': '&quot;',
+        "'": '&#39;'
+    }[character]));
+    const linkHtml = `<a href="${checklistUrl}">${checklistLabel}</a>`;
+    const richHtml = escapeHtml(plainText).replaceAll(checklistLabel, linkHtml).replaceAll('\n', '<br>');
+
+    if (navigator.clipboard && window.ClipboardItem) {
+        const clipboardData = [
+            new ClipboardItem({
+                'text/plain': new Blob([plainText], { type: 'text/plain' }),
+                'text/html': new Blob([richHtml], { type: 'text/html' })
+            })
+        ];
+        navigator.clipboard.write(clipboardData)
+            .then(() => alert('本文をコピーしました。'))
+            .catch(() => copyTextFallback(textareEl, richHtml));
+        return;
+    }
+
+    copyTextFallback(textareEl, richHtml);
+}
+
+function copyTextFallback(textareEl, richHtml) {
+    const copyArea = document.createElement('div');
+    copyArea.contentEditable = 'true';
+    copyArea.style.position = 'fixed';
+    copyArea.style.left = '-9999px';
+    copyArea.style.whiteSpace = 'pre-wrap';
+    copyArea.innerHTML = richHtml;
+    document.body.appendChild(copyArea);
+
+    const selection = window.getSelection();
+    const range = document.createRange();
+    range.selectNodeContents(copyArea);
+    selection.removeAllRanges();
+    selection.addRange(range);
+    document.execCommand('copy');
+    selection.removeAllRanges();
+    copyArea.remove();
+    alert('本文をコピーしました。');
+}
+
+window.onload = () => {
+    let defaultName = ""; 
+    if (typeof CONFIG !== 'undefined' && CONFIG.DEFAULT_MY_NAME) {
+        defaultName = CONFIG.DEFAULT_MY_NAME;
+    }
+    const myNameEl = document.getElementById('myName');
+    if(myNameEl) myNameEl.value = defaultName;
+ 
+    const today = new Date();
+    const currentYear = today.getFullYear();
+    const nextYear = currentYear + 1;
+    
+    const yearInput = document.getElementById('holidayYearInput');
+    if (yearInput) {
+        yearInput.value = nextYear;
+    }
+
+    updateVacationSchedule();
+    generate();
+};
+</script>
+</body>
+</html>

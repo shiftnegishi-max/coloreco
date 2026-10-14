@@ -1,0 +1,1989 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <title>【カラ・レコ】メール作成ツール</title>
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' fill='%2300008B'/><path d='M 15 25 L 50 50 L 85 25 M 15 25 L 15 75 L 85 75 L 85 25 Z' stroke='white' stroke-width='6' fill='none' stroke-linecap='round' stroke-linejoin='round'/></svg>">
+    <style>
+        body { font-family: "Meiryo", sans-serif; line-height: 1.5; max-width: 1200px; margin: 20px auto; padding: 20px; background-color: #f0f2f5; }
+        
+        /* タイトルと共通設定を包むヘッダーエリアのスタイル */
+        .page-header { display: flex; flex-direction: column; gap: 10px; margin-bottom: 20px; }
+        .page-title { font-size: 1.6em; font-weight: bold; color: #333; margin: 0; padding-left: 10px; border-left: 5px solid #0056b3; }
+        
+        /* 【修正箇所】タイトルの下に配置するための共通情報エリアのスタイル */
+        .common-header-panel { display: flex; align-items: center; gap: 10px; padding-left: 10px; }
+        .common-header-panel h2 { font-size: 0.9em; color: #555; margin: 0; border: none; padding: 0; white-space: nowrap; font-weight: bold; }
+        
+        /* 自分の名前入力欄の横幅制限 */
+        .name-input-wrap { width: 180px; }
+
+        .tab-container { display: flex; flex-wrap: wrap; gap: 5px; margin-bottom: 0; }
+        .tab { padding: 10px 18px; cursor: pointer; background: #ddd; border: 1px solid #ccc; border-bottom: none; border-radius: 8px 8px 0 0; font-weight: bold; color: #666; }
+        .tab.active { background: white; color: #0056b3; border-top: 4px solid #0056b3; }
+        .container { background: white; padding: 25px; border-radius: 0 8px 8px 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); display: flex; gap: 20px; }
+        .input-panel { flex: 1; border-right: 1px solid #ddd; padding-right: 20px; max-height: 85vh; overflow-y: auto; }
+        .output-panel { flex: 1; padding-left: 10px; }
+        h2 { font-size: 1.1em; color: #0056b3; border-left: 4px solid #0056b3; padding-left: 10px; margin: 20px 0 10px; }
+        .form-group { margin-bottom: 10px; }
+        label { display: block; font-size: 0.85em; font-weight: bold; margin-bottom: 3px; color: #555; }
+        input, select, textarea { width: 100%; padding: 6px; box-sizing: border-box; border: 1px solid #ccc; border-radius: 4px; }
+        .row { display: flex; gap: 10px; }
+        .row > div { flex: 1; }
+        
+        .subject-wrap { display: flex; gap: 5px; margin-bottom: 15px; }
+        input#output-subject { font-weight: bold; color: #333; background: #fdfdfd; flex: 1; }
+        .copy-sub-btn { padding: 0 15px; background: #28a745; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 0.85em; }
+        textarea#output { width: 100%; height: 680px; font-family: monospace; font-size: 13px; padding: 10px; border: 1px solid #ccc; background: #fafafa; }
+        
+        .copy-btn { width: 100%; padding: 12px; background: #0056b3; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; margin-top: 10px; }
+        .check-box-group { background: #eef6ff; padding: 15px; border-radius: 4px; margin-top: 5px; font-size: 0.9em; }
+        .check-item { margin-bottom: 5px; display: flex; align-items: center; }
+        .check-item input { width: auto; margin-right: 8px; }
+        .v-input { width: 100px; padding: 3px; margin-left: auto; font-size: 0.9em; }
+        .disabled-label { color: #aaa; text-decoration: line-through; }
+        .radio-group { display: flex; gap: 15px; background: #fff3cd; padding: 10px; border-radius: 4px; margin-bottom: 15px; }
+        .radio-item { display: flex; align-items: center; font-weight: bold; font-size: 0.9em; cursor: pointer; }
+        .radio-item input { width: auto; margin-right: 5px; cursor: pointer; }
+        .hidden { display: none; }
+        
+        .lic-type-box { background: #f8f9fa; padding: 10px; border: 1px solid #e2e8f0; border-radius: 4px; margin-bottom: 10px; }
+    </style>
+    <script src="../config.js" onerror="console.warn('config.jsが見つかりません。デフォルト値を使用します。')"></script>
+    <script>
+        // ローカルストレージから設定を読み込む
+        function loadConfigFromStorage() {
+            const stored = localStorage.getItem('karareco-config');
+            if (stored) {
+                try {
+                    const storedConfig = JSON.parse(stored);
+                    if (storedConfig.DEFAULT_MY_NAME) {
+                        if (typeof CONFIG === 'undefined') CONFIG = {};
+                        CONFIG.DEFAULT_MY_NAME = storedConfig.DEFAULT_MY_NAME;
+                    }
+                } catch (e) {
+                    console.warn('ローカルストレージの設定読み込みに失敗しました', e);
+                }
+            }
+        }
+        loadConfigFromStorage();
+
+        // myName が変更されたときに保存
+        function saveConfigToStorage() {
+            const myNameEl = document.getElementById('myName');
+            if (myNameEl) {
+                const config = {
+                    DEFAULT_MY_NAME: myNameEl.value
+                };
+                localStorage.setItem('karareco-config', JSON.stringify(config));
+            }
+        }
+    </script>
+</head>
+<body>
+
+<div class="page-header">
+    <div class="page-title">カラ・レコ</div>
+    <div class="common-header-panel">
+        <div class="row">
+            <div class="form-group name-input-wrap">
+                <label>名前</label>
+                <input type="text" id="myName" value="" placeholder="自分の名前を入力" oninput="generate(); saveConfigToStorage();">
+            </div>
+            <div class="form-group"><label>相手先 会社名</label><input type="text" id="clientCompany" placeholder="〇〇株式会社" oninput="generate()"> </div>
+            <div class="form-group" id="group-client-staff"><label>相手先 担当者名</label><input type="text" id="clientStaff" placeholder="担当者名苗字" oninput="generate()"></div>
+            </div>
+        </div>
+    </div>
+
+<div class="tab-container">
+    <div class="tab active" data-tab="newopen" onclick="switchTab('newopen')">新規開設</div>
+    <div class="tab" data-tab="lic" onclick="switchTab('lic')">ライセンス追加</div>
+    <div class="tab" data-tab="renew" onclick="switchTab('renew')">契約更新</div>
+    <div class="tab" data-tab="edu" onclick="switchTab('edu')">初回設定</div>
+    <div class="tab" data-tab="coloreco" onclick="switchTab('coloreco')">導入支援</div>
+    <div class="tab" data-tab="vacation" onclick="switchTab('vacation')">長期休暇通知</div>
+    <div class="tab" data-tab="maintenance" onclick="switchTab('maintenance')">メンテナンス</div>
+    <div class="tab" data-tab="vup" onclick="switchTab('vup')">バージョンアップ</div>
+</div>
+
+<div class="container">
+    <div class="input-panel">
+        <div id="renew-target-container"></div>
+        <div id="lic-target-container"></div>
+
+        <div id="base-info-section">
+
+        </div>
+
+        <div id="panel-newopen" class="hidden">
+            <h2>処理内容</h2>
+            <div class="form-group">
+                <textarea id="newopenMemo" style="height: 150px;" placeholder="開設に伴う備考や特記事項を入力してください" oninput="generate()"></textarea>
+            </div>
+        </div>
+
+        <div id="panel-lic">
+            <div id="lic-target-box">
+                <h2>宛先切替</h2>
+                <div class="radio-group">
+                    <label class="radio-item">
+                        <input type="radio" name="licTarget" value="customer" checked onchange="toggleLicFields(); generate();"> お客様宛
+                    </label>
+                    <label class="radio-item">
+                        <input type="radio" name="licTarget" value="tashibu" onchange="toggleLicFields(); generate();"> 田澁さん宛
+                    </label>
+                </div>
+            </div>
+
+            <div id="lic-customer-fields">
+                <h2>処理内容</h2>
+                <div class="form-group">
+                    <label>ライセンス種別</label>
+                    <div class="check-box-group" style="background: #fdfdfd; border: 1px solid #ccc; padding: 12px; margin-bottom: 15px;">
+                        <div class="check-item"><input type="checkbox" id="licTypeID" checked onchange="toggleLicInputs(); generate();"> 利用可能従業員数</div>
+                        <div class="check-item"><input type="checkbox" id="licTypeDevice" onchange="toggleLicInputs(); generate();"> 打刻クライアント台数</div>
+                    </div>
+                </div>
+
+                <div id="lic-id-inputs" class="lic-type-box">
+                    <span style="font-size: 0.85em; font-weight: bold; color: #0056b3;">【利用可能従業員数】</span>
+                    <div class="row" style="margin-top: 5px;">
+                        <div class="form-group">
+                            <label>変更前ID数</label>
+                            <input type="text" id="licIdBefore" placeholder="880" oninput="generate()">
+                        </div>
+                        <div class="form-group">
+                            <label>変更後ID数</label>
+                            <input type="text" id="licIdAfter" placeholder="930" oninput="generate()">
+                        </div>
+                    </div>
+                </div>
+
+                <div id="lic-device-inputs" class="lic-type-box hidden">
+                    <span style="font-size: 0.85em; font-weight: bold; color: #0056b3;">【打刻クライアント台数】</span>
+                    <div class="row" style="margin-top: 5px;">
+                        <div class="form-group">
+                            <label>変更前台数（例：5）</label>
+                            <input type="text" id="licDeviceBefore" placeholder="5" oninput="generate()">
+                        </div>
+                        <div class="form-group">
+                            <label>変更後台数（例：7）</label>
+                            <input type="text" id="licDeviceAfter" placeholder="7" oninput="generate()">
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="lic-tashibu-fields" class="hidden">
+                <h2>処理内容</h2>
+                <div class="form-group">
+                    <textarea id="licTashibuMemo" style="height: 150px;" placeholder="[開設依頼書の備考欄]" oninput="generate()"></textarea>
+                </div>
+            </div>
+        </div>
+
+        <!-- レイアウト：契約更新タブ -->
+        <div id="panel-renew" class="hidden">
+            <div id="renew-target-box">
+                <h2>宛先切替</h2>
+                <div class="radio-group">
+                    <label class="radio-item">
+                        <input type="radio" name="renewTarget" value="customer" checked onchange="toggleRenewFields(); generate();"> お客様宛
+                    </label>
+                    <label class="radio-item">
+                        <input type="radio" name="renewTarget" value="tashibu" onchange="toggleRenewFields(); generate();"> 田澁さん宛
+                    </label>
+                </div>
+            </div>
+
+            <div id="renew-customer-fields" class="hidden">
+                <h2>処理内容</h2>
+                <div id="group-limit-date" class="form-group">
+                    <label>更新後の利用期限</label>
+                    <input type="date" id="limitDate" oninput="generate()">
+                </div>
+            </div>
+
+            <div id="renew-tashibu-fields" class="hidden">
+                <h2>処理内容</h2>
+                <div class="form-group">
+                    <textarea id="tashibuMemo" style="height: 100px;" placeholder="処理内容や変更点などを入力してください" oninput="generate()"></textarea>
+                </div>
+            </div>
+        </div>
+
+        <!-- レイアウト：初回設定タブ -->
+        <div id="panel-edu" class="hidden">
+            <h2>用途切替</h2>
+            <div class="radio-group">
+                <label class="radio-item">
+                    <input type="radio" name="setupType" value="noticeEdu" checked onchange="toggleSetupFields(); generate();"> 通知用
+                </label>
+                <label class="radio-item">
+                    <input type="radio" name="setupType" value="replyEdu" onchange="toggleSetupFields(); generate();"> 返信用
+                </label>
+            </div>
+            
+            <h2>契約内容</h2>
+            <div class="row">
+                <div class="form-group">
+                    <label>連携システム</label>
+                    <select id="sysAuthMethodEdu" onchange="generate();">
+                        <option value="noneEdu" selected>なし</option>
+                        <option value="bugyo_cloudEdu">奉行クラウド</option>
+                        <option value="xronos_apiEdu">クロノス（API連携）</option>
+                        <option value="xronos_autoEdu">クロノス（自動連携）</option>
+                        <option value="daijin_autoEdu">就業大臣</option>
+                        <option value="jinjerEdu">ジンジャー</option>
+                        <option value="kinro_shishiEdu">勤労の獅子</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>打刻認証方法</label>
+                    <select id="authMethodEdu" multiple size="9" onchange="togglePalmShipmentFields(); generate();">
+                        <option value="faceWinEdu" selected>顔認証（Windows版）</option>    
+                        <option value="faceIpadEdu">顔認証（iPad版）</option>
+                        <option value="faceMobileEdu">顔認証（モバイル版）</option>
+                        <option value="faceunknownEdu">顔認証（不明）</option>
+                        <option value="palmWinEdu">手のひら静脈（Windows版）</option>
+                        <option value="icWinEdu">カメレオンコード（Windows版）</option>
+                        <option value="icIpadEdu">カメレオンコード（iPad版）</option>
+                        <option value="icMobileEdu">カメレオンコード（モバイル版）</option>
+                        <option value="icunknownEdu">カメレオンコード（不明）</option>
+                    </select>
+                    <small>Ctrlキーを押しながら選択すると、複数選択できます。</small>
+                </div>
+            </div>
+
+            <div class="check-box-group">
+                <label>オプション</label>
+                <div class="check-item">
+                    <input type="checkbox" id="optAlcoholNoticeEdu" onchange="toggleEduVitalCheckOptions(); generate()">バイタルチェック
+                </div>
+                <div id="edu-vital-check-options" class="check-item hidden" style="gap: 15px; margin-left: 24px;">
+                    <label class="radio-item" style="font-weight: normal;">
+                        <input type="checkbox" id="optVitalAlcoholEdu" onchange="generate()">アルコール
+                    </label>
+                    <label class="radio-item" style="font-weight: normal;">
+                        <input type="checkbox" id="optVitalTemperatureEdu" onchange="generate()">体表面温度
+                    </label>
+                </div>
+            </div>
+
+            <div id="notice-edu">
+                <h2>サポート日程</h2>
+                <div class="form-group">
+                    <input type="date" id="eduSupportStartDate" oninput="generate()">
+                </div>
+
+                <div id="palm-shipment-dates" class="hidden">
+                    <h2>手のひら静脈認証機器の発送日程</h2>
+                    <div class="form-group">
+                        <label>発送日</label>
+                        <input type="date" id="eduPalmShipmentDate" oninput="generate()">
+                    </div>
+                    <div class="form-group">
+                        <label>お届け</label>
+                        <div class="row">
+                            <div class="form-group"><label>開始日</label><input type="date" id="eduPalmDeliveryStartDate" oninput="generate()"></div>
+                            <div class="form-group"><label>終了日</label><input type="date" id="eduPalmDeliveryEndDate" oninput="generate()"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <h2>評価期間</h2>
+                <div class="row">
+                    <div class="form-group"><label>評価開始日</label><input type="date" id="eduEvalStart" oninput="generate()"></div>
+                    <div class="form-group"><label>評価終了日</label><input type="date" id="eduEvalEnd" oninput="generate()"></div>
+                </div>
+
+                <h2>アカウント情報</h2>
+                <div class="form-group"><label>ログインURL</label><input type="text" id="eduLoginUrl" placeholder="https://" oninput="generate()"></div>
+                <div class="row">
+                    <div class="form-group"><label>管理者ユーザID</label><input type="text" id="eduAdminId" placeholder="admin" oninput="generate()"></div>
+                    <div class="form-group"><label>管理者パスワード</label><input type="text" id="eduAdminPw" oninput="generate()"></div>
+                </div>
+            </div>
+
+            <div id="reply-edu">
+                <div id="panel-reply-edu" class="hidden">
+                    <h2>実施日時・実施方法</h2>
+                    <div class="row">
+                        <div class="form-group"><label>実施日</label><input type="date" id="maintenanceDateEdu" oninput="generate()"></div>
+                        <div class="form-group"><label>実施時間</label><input type="time" id="maintenanceTimeEdu" oninput="generate()"></div>
+                    </div>
+                    <div class="form-group">
+                        <label>実施方法</label>
+                        <select id="EduMethod" onchange="generate();">
+                            <option value="faceWin" selected>Zoom</option>    
+                            <option value="faceIpad">お電話</option>
+                        </select>
+                        <label>URL</label><textarea id="zoomUrl" style="height: 100px;" placeholder="URL" oninput="generate()"></textarea>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- レイアウト：導入支援タブ -->
+        <div id="panel-coloreco" class="hidden">
+            <h2>用途切替</h2>
+            <div class="radio-group">
+                <label class="radio-item">
+                    <input type="radio" name="colorecoMailType" value="notice" checked onchange="toggleColorecoFields(); generate();"> 導入支援案内
+                </label>
+                <label class="radio-item">
+                    <input type="radio" name="colorecoMailType" value="followup" onchange="toggleColorecoFields(); generate();"> 導入支援後の返信
+                </label>
+            </div>
+            <h2>契約内容</h2>
+            <div class="row">
+                <div class="form-group">
+                    <label>連携システム</label>
+                    <select id="sysAuthMethod" onchange="generate();">
+                        <option value="none" selected>なし</option>
+                        <option value="bugyo_cloud">奉行クラウド</option>
+                        <option value="xronos_api_full">クロノス（API：従業員+打刻）</option>
+                        <option value="xronos_auto">クロノス（CSV：従業員+打刻）</option>
+                        <option value="xronos_api">クロノス（API：従業員 ／CSV：打刻）</option>
+                        <option value="daijin_auto">就業大臣</option>
+                        <option value="jinjer">ジンジャー</option>
+                        <option value="kinro_shishi">勤労の獅子</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>打刻認証方法</label>
+                    <select id="authMethod" multiple size="9" onchange="toggleColorecoPalmShipmentFields(); generate();">
+                        <option value="faceWin" selected>顔認証（Windows版）</option>    
+                        <option value="faceIpad">顔認証（iPad版）</option>
+                        <option value="faceMobile">顔認証（モバイル版）</option>
+                        <option value="faceunknown">顔認証（不明）</option>
+                        <option value="palmWin">手のひら静脈（Windows版）</option>
+                        <option value="icWin">カメレオンコード（Windows版）</option>
+                        <option value="icIpad">カメレオンコード（iPad版）</option>
+                        <option value="icMobile">カメレオンコード（モバイル版）</option>
+                        <option value="icunknown">カメレオンコード（不明）</option>
+                    </select>
+                    <small>Ctrlキーを押しながら選択すると、複数選択できます。</small>
+                </div>
+            </div>
+            <div id="coloreco-notice-fields">
+            <div class="row">
+                <div class="form-group"><label>ライセンス数</label><input type="text" id="licCount" placeholder="3" oninput="generate()"></div>
+                <div class="form-group"><label>契約ID数</label><input type="text" id="idCount" placeholder="20" oninput="generate()"></div>
+            </div>
+            <div class="row">
+                <div class="form-group"><label>契約開始</label><input type="date" id="startDate" oninput="generate()"></div>
+                <div class="form-group"><label>契約終了</label><input type="date" id="endDate" oninput="generate()"></div>
+            </div>
+            <div class="check-box-group">
+                <label>オプション</label>
+                <div class="check-item" id="alcWrapper">
+                    <input type="checkbox" id="optAlcohol" onchange="toggleVitalCheckOptions(); generate()">バイタルチェック
+                    <div style="display: flex; align-items: center; gap: 10px; margin-left: auto;">
+                        <div style="display: flex; align-items: center; gap: 5px;">
+                            <label style="margin: 0; white-space: nowrap; font-weight: normal;">ライセンス数</label>
+                            <input type="text" id="licOptAlcohol" value="" class="v-input" style="width: 80px;" oninput="generate()">
+                        </div>
+                        <div style="display: flex; align-items: center; gap: 5px;">
+                            <label style="margin: 0; white-space: nowrap; font-weight: normal;">契約ID数</label>
+                            <input type="text" id="idOptAlcohol" value="" class="v-input" style="width: 80px;" oninput="generate()">
+                        </div>
+                    </div>
+                </div>
+                <div id="vital-check-options" class="check-item hidden" style="gap: 15px; margin-left: 24px;">
+                    <label class="radio-item" style="font-weight: normal;">
+                        <input type="checkbox" id="optVitalAlcohol" onchange="generate()">アルコール
+                    </label>
+                    <label class="radio-item" style="font-weight: normal;">
+                        <input type="checkbox" id="optVitalTemperature" onchange="generate()">体表面温度
+                    </label>
+                </div>
+            </div>
+
+            <div id="coloreco-palm-shipment-dates" class="hidden">
+                <h2>手のひら静脈認証機器の発送日程</h2>
+                <div class="form-group">
+                    <label>発送日</label>
+                    <input type="date" id="colorecoPalmShipmentDate" oninput="generate()">
+                </div>
+                <div class="form-group">
+                    <label>お届け</label>
+                    <div class="row">
+                        <div class="form-group"><label>開始日</label><input type="date" id="colorecoPalmDeliveryStartDate" oninput="generate()"></div>
+                        <div class="form-group"><label>終了日</label><input type="date" id="colorecoPalmDeliveryEndDate" oninput="generate()"></div>
+                    </div>
+                </div>
+            </div>
+
+            <h2>日程・場所</h2>
+            <div class="radio-group">
+                <label class="radio-item">
+                    <input type="radio" name="visitMethod" value="visit" checked onchange="toggleVisitMethodFields(); generate();"> 訪問
+                </label>
+                <label class="radio-item">
+                    <input type="radio" name="visitMethod" value="web" onchange="toggleVisitMethodFields(); generate();"> WEB
+                </label>
+            </div>
+            <div class="form-group"><label>操作指導実施日</label><input type="date" id="visitDate" oninput="generate()"></div>
+            <div class="row">
+                <div class="form-group"><label>開始時間</label><input type="time" value="10:00" id="startTime" oninput="generate()"></div>
+                <div class="form-group"><label>終了時間</label><input type="time" value="15:00" id="endTime" oninput="generate()"></div>
+            </div>
+            <div class="row" id="visit-location-fields">
+                <div class="form-group"><label>郵便番号</label><input type="text" id="zip" placeholder="000-0000" oninput="generate()"></div>
+                <div class="form-group"><label>実施場所 住所</label><input type="text" id="address" oninput="generate()"></div>
+            </div>
+            <div class="form-group hidden" id="visit-url-field">
+                <label>実施URL</label>
+                <textarea id="visitUrl" style="height: 80px;" placeholder="https://" oninput="generate()"></textarea>
+            </div>
+
+            <h2>アカウント情報</h2>
+            <div class="form-group"><label>ログインURL</label><input type="text" id="loginUrl" oninput="generate()"></div>
+            <div class="row">
+                <div class="form-group"><label>管理者ユーザID</label><input type="text" id="adminId" oninput="generate()"></div>
+                <div class="form-group"><label>管理者パスワード</label><input type="text" id="adminPw" oninput="generate()"></div>
+            </div>
+            </div>
+        </div>
+
+        <!-- レイアウト：長期休暇通知 -->
+        <div id="panel-vacation" class="hidden">
+            <h2>休暇種別</h2>
+            <div class="form-group">
+                <select id="vacationType" onchange="updateVacationScheduleTemplate(); generate()">
+                    <option value="年末年始" selected>年末年始</option>
+                    <option value="ゴールデンウィーク">ゴールデンウィーク</option>
+                    <option value="お盆">お盆</option>
+                </select>
+            </div>
+            <h2>営業時間スケジュール</h2>
+            <div class="form-group">
+                <textarea id="vacationSchedule" style="height: 130px;" oninput="generate()"></textarea>
+            </div>
+            <h2>対応再開日時</h2>
+            <div class="form-group">
+                <input type="date" id="vacationResumeDate" oninput="generate()">
+            </div>
+        </div>
+
+        <div id="panel-maintenance" class="hidden">
+            <h2>実施日時</h2>
+            <div class="row">
+                <div class="form-group"><label>実施日</label><input type="date" id="maintenanceDate" oninput="generate()"></div>
+                <div class="form-group"><label>実施時間</label><input type="time" id="maintenanceTime" oninput="generate()"></div>
+            </div>
+        </div>
+
+        <!-- レイアウト：バージョンアップ -->
+        <div id="panel-vup" class="hidden">
+            <h2>アップデート対象</h2>
+            <div class="check-box-group">
+                <div class="check-item"><input type="checkbox" id="vupTargetMng"  onchange="toggleVupAppInputs(); generate()"> 管理画面</div>
+                <div class="check-item"><input type="checkbox" id="vupTargetAppWin" onchange="toggleVupAppInputs(); generate()"> 打刻アプリ（Windows版）</div>
+                <div class="check-item"><input type="checkbox" id="vupTargetAppiPad" onchange="toggleVupAppInputs(); generate()"> 打刻アプリ（iPad版）</div>
+                <div class="check-item"><input type="checkbox" id="vupTargetMobile" onchange="toggleVupAppInputs(); generate()"> 打刻アプリ（モバイル版）</div>
+                <div class="check-item"><input type="checkbox" id="vupTargetLink" onchange="toggleVupAppInputs(); generate()"> 自動連携アプリ</div>
+            </div>
+
+            <h2>実施日時</h2>
+            <div class="form-group">
+                <label>実施日</label>
+                <input type="date" id="vupDate" value="" oninput="generate()">
+            </div>
+            <div class="row">
+                <div id="vup-Mng-inputs-time" class="form-group">
+                    <label>管理画面の実施時間</label>
+                    <input type="time" id="vupStartTime" value="13:00" oninput="generate()">
+                </div>
+                <div id="vup-App-inputs-time" class="form-group">
+                    <label id="vup-App-inputs-time-label">打刻アプリの実施時間</label>
+                    <input type="time" id="appStartTime" value="10:00" oninput="generate()">
+                </div>
+                <div id="vup-Link-inputs-time" class="form-group">
+                    <label>自動連携アプリの実施時間</label>
+                    <input type="time" id="linkStartTime" value="10:00" oninput="generate()">
+                </div>
+            </div>
+
+            <h2 id="vup-Title-inputs">リリースバージョン対象（対象にチェック＆最新verを入力）</h2>
+            <div id="vup-Color-inputs" class="check-box-group">
+                <div id="vup-App-Win-inputs">
+                        <span style="font-size: 0.85em; font-weight: bold; color: #333;">【Windows版】</span>
+                        <div class="check-item">
+                            <input type="checkbox" id="vupWinCc" onchange="generate()"> カメレオンコード
+                            <input type="text" id="verWinCc" value="" class="v-input" oninput="generate()">
+                        </div>
+                        <div class="check-item">
+                            <input type="checkbox" id="vupWinPalm" onchange="generate()"> 手のひら静脈認証
+                            <input type="text" id="verWinPalm" value="" class="v-input" oninput="generate()">
+                        </div>
+                        <div class="check-item">
+                            <input type="checkbox" id="vupWinFace" onchange="generate()"> 顔認証
+                            <input type="text" id="verWinFace" value="" class="v-input" oninput="generate()">
+                        </div>
+                </div>
+
+                <div id="vup-App-Ipad-inputs">     
+                        <span style="font-size: 0.85em; font-weight: bold; color: #333; display: block; margin-top: 10px;">【iPad版】</span>
+                        <div class="check-item">
+                            <input type="checkbox" id="vupPadCc" onchange="generate()"> カメレオンコード
+                            <input type="text" id="verPadCc" value="" class="v-input" oninput="generate()">
+                        </div>
+                        <div class="check-item">
+                            <input type="checkbox" id="vupPadFace" onchange="generate()"> 打刻アプリ 顔認証
+                            <input type="text" id="verPadFace" value="" class="v-input" oninput="generate()">
+                        </div>
+                </div>
+
+                <div id="vup-App-Mobile-inputs">
+                        <span style="font-size: 0.85em; font-weight: bold; color: #333; display: block; margin-top: 10px;">【モバイル版】</span>
+                        <div class="check-item">
+                            <input type="checkbox" id="vupMobilePunch" onchange="generate()"> モバイル打刻
+                            <input type="text" id="verMobilePunch" value="1.0.0" class="v-input" oninput="generate()">
+                        </div>
+                </div>
+
+                <div id="vup-Link-inputs">
+                        <span style="font-size: 0.85em; font-weight: bold; color: #333;">【自動連携アプリケーション】</span>
+                        <div class="check-item">
+                            <input type="checkbox" id="vupeduApp" onchange="generate()"> 自動連携アプリケーション（就業奉行）
+                            <input type="text" id="vereduApp" value="" class="v-input" oninput="generate()">
+                        </div>
+                        <div class="check-item">
+                            <input type="checkbox" id="vupeduAppDaijin" onchange="generate()"> 自動連携アプリケーション（就業大臣）
+                            <input type="text" id="vereduAppDaijin" value="" class="v-input" oninput="generate()">
+                        </div>
+                        <div class="check-item">
+                            <input type="checkbox" id="vupeduAppXronos" onchange="generate()"> 自動連携アプリケーション（Xronos）
+                            <input type="text" id="vereduAppXronos" value="" class="v-input" oninput="generate()">
+                        </div>
+                </div>
+            </div>
+
+            <h2>バージョンアップ内容</h2>
+            <div class="form-group">
+                <textarea id="vupContentMemo" style="height: 180px;" oninput="generate()"></textarea>
+            </div>
+        </div>
+
+    </div>
+
+    <div class="output-panel">
+        <label>件名</label>
+        <div class="subject-wrap">
+            <input type="text" id="output-subject" readonly>
+            <button class="copy-sub-btn" onclick="copySubject()">件名をコピー</button>
+        </div>
+
+        <label>本文</label>
+        <textarea id="output" readonly></textarea>
+        <button class="copy-btn" onclick="copyText()">本文をコピー</button>
+    </div>
+</div>
+
+<script>
+const BASE_COMMON_SIGNATURE = `━━━━━━━━━━━━━━━━━━━━━━━
+打刻管理システム「カラ・レコ」
+サポートセンター
+営業時間： 9:30-12:00 13:00-17:30
+休業日： 土日祝日及び弊社休業日
+TEL ： 03-6628-5494
+MAIL： ccdakoku_support@shift-2005.co.jp
+FAQ ： http://help.cckintai.com/shift/colorecocloud/
+━━━━━━━━━━━━━━━━━━━━━━━`;
+
+function getFormattedSignature(name, isVup = false) {
+    return BASE_COMMON_SIGNATURE;
+}
+
+// 前回のタブをlocalStorageから取得、初回は'newopen'をデフォルト
+let currentTab = localStorage.getItem('karareco-activeTab') || 'newopen';
+
+function toggleSetupFields() {
+    const typeEl = document.querySelector('input[name="setupType"]:checked');
+    if (!typeEl) return;
+    const type = typeEl.value;
+
+    const noticeBox = document.getElementById('notice-edu');
+    const replyWrapper = document.getElementById('reply-edu');
+    const replyPanel = document.getElementById('panel-reply-edu');
+
+    if (noticeBox) noticeBox.classList.toggle('hidden', type !== 'noticeEdu');
+    if (replyWrapper) replyWrapper.classList.toggle('hidden', type !== 'replyEdu');
+    if (replyPanel) replyPanel.classList.toggle('hidden', type !== 'replyEdu');
+    togglePalmShipmentFields();
+}
+
+function togglePalmShipmentFields() {
+    const authEl = document.getElementById('authMethodEdu');
+    const shipmentDates = document.getElementById('palm-shipment-dates');
+    const hasPalmAuth = authEl && Array.from(authEl.selectedOptions).some(option => option.value === 'palmWinEdu');
+    if (shipmentDates) shipmentDates.classList.toggle('hidden', !hasPalmAuth);
+}
+
+function toggleColorecoFields() {
+    const typeEl = document.querySelector('input[name="colorecoMailType"]:checked');
+    const noticeFields = document.getElementById('coloreco-notice-fields');
+    const combinedFaceOption = document.querySelector('#authMethod option[value="faceunknown"]');
+    if (typeEl) {
+        if (noticeFields) noticeFields.classList.toggle('hidden', typeEl.value === 'followup');
+        if (combinedFaceOption) {
+            combinedFaceOption.textContent = typeEl.value === 'followup' ? '顔認証（両方）' : '顔認証（不明）';
+        }
+    }
+    toggleColorecoPalmShipmentFields();
+}
+
+function toggleVitalCheckOptions() {
+    const vitalCheck = document.getElementById('optAlcohol');
+    const options = document.getElementById('vital-check-options');
+    if (!vitalCheck || !options) return;
+
+    options.classList.toggle('hidden', !vitalCheck.checked);
+    if (!vitalCheck.checked) {
+        document.getElementById('optVitalAlcohol').checked = false;
+        document.getElementById('optVitalTemperature').checked = false;
+    }
+}
+
+function toggleEduVitalCheckOptions() {
+    const vitalCheck = document.getElementById('optAlcoholNoticeEdu');
+    const options = document.getElementById('edu-vital-check-options');
+    if (!vitalCheck || !options) return;
+
+    options.classList.toggle('hidden', !vitalCheck.checked);
+    if (!vitalCheck.checked) {
+        document.getElementById('optVitalAlcoholEdu').checked = false;
+        document.getElementById('optVitalTemperatureEdu').checked = false;
+    }
+}
+
+function toggleColorecoPalmShipmentFields() {
+    const typeEl = document.querySelector('input[name="colorecoMailType"]:checked');
+    const authEl = document.getElementById('authMethod');
+    const shipmentDates = document.getElementById('coloreco-palm-shipment-dates');
+    const hasPalmAuth = authEl && Array.from(authEl.selectedOptions).some(option => option.value === 'palmWin');
+    const shouldShow = typeEl && typeEl.value === 'notice' && hasPalmAuth;
+    if (shipmentDates) shipmentDates.classList.toggle('hidden', !shouldShow);
+}
+
+function toggleVisitMethodFields() {
+    const methodEl = document.querySelector('input[name="visitMethod"]:checked');
+    const isWeb = methodEl && methodEl.value === 'web';
+    document.getElementById('visit-location-fields').classList.toggle('hidden', isWeb);
+    document.getElementById('visit-url-field').classList.toggle('hidden', !isWeb);
+}
+
+function toggleRenewFields() {
+    const targetEl = document.querySelector('input[name="renewTarget"]:checked');
+    if(!targetEl) return;
+    const target = targetEl.value;
+    document.getElementById('renew-customer-fields').classList.toggle('hidden', target !== 'customer');
+    document.getElementById('renew-tashibu-fields').classList.toggle('hidden', target !== 'tashibu');
+    updateStaffVisibility();
+}
+
+function toggleLicFields() {
+    const targetEl = document.querySelector('input[name="licTarget"]:checked');
+    if(!targetEl) return;
+    const target = targetEl.value;
+    document.getElementById('lic-customer-fields').classList.toggle('hidden', target !== 'customer');
+    document.getElementById('lic-tashibu-fields').classList.toggle('hidden', target !== 'tashibu');
+    updateStaffVisibility();
+}
+
+function toggleLicInputs() {
+    const showID = document.getElementById('licTypeID').checked;
+    const showDevice = document.getElementById('licTypeDevice').checked;
+    
+
+    document.getElementById('lic-id-inputs').classList.toggle('hidden', !showID);
+    document.getElementById('lic-device-inputs').classList.toggle('hidden', !showDevice);
+}
+
+function toggleVupAppInputs() {
+    let showVupTitle = true
+    let showVupApp = true
+    const showVupMng = document.getElementById('vupTargetMng').checked;
+    const showVupAppWin = document.getElementById('vupTargetAppWin').checked;
+    const showVupAppIpad = document.getElementById('vupTargetAppiPad').checked;
+    const showVupMobile = document.getElementById('vupTargetMobile').checked;
+    const showVupLink = document.getElementById('vupTargetLink').checked;
+
+    if(showVupAppWin || showVupAppIpad || showVupMobile || showVupLink){
+        showVupTitle = false;
+    };
+
+    if(showVupAppWin || showVupAppIpad || showVupMobile){
+        showVupApp = false;
+    };
+
+    // 件名・リリースバージョン対象制御
+    document.getElementById('vup-Color-inputs').classList.toggle('hidden', showVupTitle);
+    document.getElementById('vup-Title-inputs').classList.toggle('hidden', showVupTitle);
+    document.getElementById('vup-App-Win-inputs').classList.toggle('hidden', !showVupAppWin);
+    document.getElementById('vup-App-Ipad-inputs').classList.toggle('hidden', !showVupAppIpad);
+    document.getElementById('vup-App-Mobile-inputs').classList.toggle('hidden', !showVupMobile);
+    document.getElementById('vup-Link-inputs').classList.toggle('hidden', !showVupLink);
+    document.getElementById('vup-App-inputs-time-label').textContent =
+        showVupMobile ? 'モバイル版の実施時間' : '打刻アプリの実施時間';
+
+    // 実施時間制御
+    document.getElementById('vup-Mng-inputs-time').classList.toggle('hidden', !showVupMng);
+    document.getElementById('vup-App-inputs-time').classList.toggle('hidden', showVupApp);
+    document.getElementById('vup-Link-inputs-time').classList.toggle('hidden', !showVupLink);
+
+}
+
+function updateStaffVisibility() {
+    const staffGroup = document.getElementById('group-client-staff');
+    if (!staffGroup) return;
+    
+    if (currentTab === 'renew') {
+        const targetEl = document.querySelector('input[name="renewTarget"]:checked');
+        const target = targetEl ? targetEl.value : 'customer';
+        if (target === 'tashibu') {
+            staffGroup.classList.add('hidden');
+        } else {
+            staffGroup.classList.remove('hidden');
+        }
+    } else if (currentTab === 'lic') {
+        const targetEl = document.querySelector('input[name="licTarget"]:checked');
+        const target = targetEl ? targetEl.value : 'customer';
+        if (target === 'tashibu') {
+            staffGroup.classList.add('hidden');
+        } else {
+            staffGroup.classList.remove('hidden');
+        }
+    } else {
+        staffGroup.classList.remove('hidden');
+    }
+}
+
+function switchTab(tabName) {
+    currentTab = tabName;
+    // localStorageにアクティブなタブを保存
+    localStorage.setItem('karareco-activeTab', tabName);
+    
+    document.querySelectorAll('.tab').forEach(t => {
+        t.classList.remove('active');
+    });
+    
+    const targetTab = document.querySelector(`.tab[data-tab="${tabName}"]`);
+    if (targetTab) {
+        targetTab.classList.add('active');
+    }
+
+    const tabMapping = {
+        'newopen': '新規開設',
+        'lic': 'ライセンス追加',
+        'renew': '契約更新',
+        'edu': '初回設定',
+        'coloreco': '導入支援',
+        'vacation': '長期休暇通知',
+        'maintenance': 'サーバーメンテナンス',
+        'vup': 'バージョンアップ',
+    };
+
+    document.getElementById('panel-newopen').classList.toggle('hidden', tabName !== 'newopen');
+    document.getElementById('panel-lic').classList.toggle('hidden', tabName !== 'lic');
+    document.getElementById('panel-renew').classList.toggle('hidden', tabName !== 'renew');
+    document.getElementById('panel-edu').classList.toggle('hidden', tabName !== 'edu');
+    document.getElementById('panel-coloreco').classList.toggle('hidden', tabName !== 'coloreco');
+    document.getElementById('panel-vup').classList.toggle('hidden', tabName !== 'vup');
+    document.getElementById('panel-vacation').classList.toggle('hidden', tabName !== 'vacation');
+    document.getElementById('panel-maintenance').classList.toggle('hidden', tabName !== 'maintenance');
+    
+    document.getElementById('base-info-section').classList.toggle('hidden', tabName === 'vup' || tabName === 'vacation' || tabName === 'maintenance');
+
+    if (tabName === 'edu') {
+        toggleSetupFields();
+    }
+    if (tabName === 'coloreco') {
+        toggleColorecoFields();
+    }
+
+    updateStaffVisibility();
+
+    const targetContainer = document.getElementById('renew-target-container');
+    const targetBox = document.getElementById('renew-target-box');
+    const panelRenew = document.getElementById('panel-renew');
+
+    if (targetContainer && targetBox && panelRenew) {
+        if (tabName === 'renew') {
+            targetContainer.appendChild(targetBox);
+        } else {
+            panelRenew.insertBefore(targetBox, panelRenew.firstChild);
+        }
+    }
+
+    const licContainer = document.getElementById('lic-target-container');
+    const licBox = document.getElementById('lic-target-box');
+    const panelLic = document.getElementById('panel-lic');
+
+    if (licContainer && licBox && panelLic) {
+        if (tabName === 'lic') {
+            licContainer.appendChild(licBox);
+        } else {
+            panelLic.insertBefore(licBox, panelLic.firstChild);
+        }
+    }    
+    generate();
+}
+
+function getDayOfWeek(dateStr, shortFormat = true) {
+    if(!dateStr) return "●";
+    const days = ["日", "月", "火", "水", "木", "金", "土"];
+    const day = days[new Date(dateStr).getDay()];
+    return shortFormat ? day : `${day}曜日`;
+}
+
+function formatJapanDate(dateStr) {
+    if (!dateStr) return "20●●年●月●日";
+    const d = new Date(dateStr);
+    return `${d.getFullYear()}年${d.getMonth() + 1}月${d.getDate()}日`;
+}
+
+function formatMonthDay(dateStr) {
+    if (!dateStr) return "●月●日";
+    const d = new Date(dateStr);
+    return `${d.getMonth() + 1}月${d.getDate()}日`;
+}
+
+function formatResumeDate(dateStr) {
+    if (!dateStr) return "[対応再開日時]";
+    const d = new Date(dateStr);
+    const month = d.getMonth() + 1;
+    const day = d.getDate();
+    const days = ["日", "月", "火", "水", "木", "金", "土"];
+    const week = days[d.getDay()];
+    return `${month}月${day}日（${week}）`;
+}
+
+function getVacationScheduleTemplate(type) {
+    const currentYear = new Date().getFullYear();
+    const nextYear = currentYear + 1;
+
+    switch (type) {
+        case '年末年始':
+            return `■${currentYear}年
+　12月25日（木） 通常営業（9:30～12:00/13:00～17:30）
+　12月26日（金） 時短営業（9:30～13:00）
+　12月27日（土）～ 31日（水） 休業
+
+■${nextYear}年
+　1月1日（木）～ 4日（日） 休業
+　1月5日（月） 時短営業（13:00～17:30）
+　1月6日（火） 通常営業（9:30～12:00/13:00～17:30）`;
+        case 'お盆':
+            return `8月8日（金）　　　　　　    17：30まで
+8月9日（土）～ 8月17日（日）休業
+8月18日（月）　　　　　　    時短営業（13:00～17:30）
+
+お盆期間前後はお問い合わせが非常に多くなり、
+繋がりにくい場合がございます。
+設定面に関するご不明点がございました際は、
+お早めにご連絡いただけますと幸いです。`;
+        case 'ゴールデンウィーク':
+            return `4月28日（火）　　　　　　    通常営業（9:30～12:00/13:00～17:30）
+4月29日（水）　　　　　　    休業
+4月30日（木）～ 5月01日（金）通常営業（9:30～12:00/13:00～17:30）
+5月02日（土）～ 5月06日（水）休業
+5月07日（木）　　　　　　    時短営業（13:00～17:30）`;
+        default:
+            return "";
+    }
+}
+
+function updateVacationScheduleTemplate() {
+    const typeEl = document.getElementById('vacationType');
+    const scheduleEl = document.getElementById('vacationSchedule');
+    if (!typeEl || !scheduleEl) return;
+    const currentValue = scheduleEl.value.trim();
+    const currentType = typeEl.value;
+    const newTemplate = getVacationScheduleTemplate(currentType);
+    const templates = [
+        getVacationScheduleTemplate('年末年始'),
+        getVacationScheduleTemplate('お盆'),
+        getVacationScheduleTemplate('ゴールデンウィーク')
+    ].map(t => t.trim());
+
+    if (currentValue === "" || templates.includes(currentValue)) {
+        scheduleEl.value = newTemplate;
+    }
+}
+
+function getMonthDiff(d1, d2) {
+    if(!d1 || !d2) return " ";
+    const start = new Date(d1); const end = new Date(d2);
+    let m = (end.getFullYear() - start.getFullYear()) * 12 + (end.getMonth() - start.getMonth());
+    return m <= 0 ? 0 : m;
+}
+
+function generateColorecoFollowUpReply(cComp, cStaff, myName, auth, sysAuth) {
+    const authMethods = Array.isArray(auth) ? auth : [auth];
+    const hasAuth = (method) => authMethods.includes(method);
+    const isFaceBoth = hasAuth('faceunknown');
+    const isFaceWin = hasAuth('faceWin') || isFaceBoth;
+    const isFaceIpad = hasAuth('faceIpad') || isFaceBoth;
+    const isPalmWin = hasAuth('palmWin');
+    let mail = `${cComp}\n${cStaff}様\n\n`;
+    mail += `いつもお世話になっております。\n\n`;
+    mail += `「カラ・レコ」サポートセンター ${myName}でございます。\n\n`;
+    mail += `昨日はお忙しいところお時間をいただき、誠にありがとうございました。\n\n`;
+    mail += `昨日ご案内した内容、および今後お客様にてご対応いただく事項につきまして、\n`;
+    mail += `下記のとおりご案内いたします。\n\n`;
+    mail += `------------------------------------------------------------------------\n■ タイムレコーダーマニュアル\n------------------------------------------------------------------------\n\n`;
+
+
+    if (isFaceWin && isFaceIpad) {
+        mail += `・Windows版打刻アプリケーション（顔認証）\n`;
+        mail += `https://sdk.shift-cc.com/portal/DL/Coloreco/Coloreco_Manual_Client_Windows_face.pdf\n\n`;
+        mail += `・iPad版打刻アプリケーション（顔認証）\n`;
+        mail += `https://sdk.shift-cc.com/portal/DL/Coloreco/Coloreco_Manual_Client_iPad_face.pdf\n\n`;
+    } else if (isFaceWin) {
+        mail += `https://sdk.shift-cc.com/portal/DL/Coloreco/Coloreco_Manual_Client_Windows_face.pdf\n\n`;
+    } else if (isFaceIpad) {
+        mail += `https://sdk.shift-cc.com/portal/DL/Coloreco/Coloreco_Manual_Client_iPad_face.pdf\n\n`;
+    } else if (isPalmWin) {
+        mail += `https://sdk.shift-cc.com/portal/DL/Coloreco/Coloreco_Manual_Client_Windows_Palm.pdf\n\n`;
+    }
+
+    if (isFaceWin || isFaceIpad || isPalmWin) {
+        mail += `------------------------------------------------------------------------\n■ ご対応の流れ\n------------------------------------------------------------------------\n\n`;
+    }
+
+    if (isFaceBoth) {
+        mail += `1．タイムレコーダーの接続\n\n`;
+        mail += `① タイムレコーダーを打刻端末にインストールします。\n\n`;
+        mail += `＜Windows＞\n\nhttps://sdk.shift-cc.com/coloreco-client-face/Publish.html\n\n`;
+        mail += `＜iPad＞\n\niPadのApp Storeで「カラレコ」と検索し、\n`;
+        mail += `「Coloreco-顔認証-」をダウンロードします。\n\n`;
+        mail += `② 接続文字列を入力し、管理画面とタイムレコーダーを接続します。\n`;
+        mail += `http://help.cckintai.com/shift/colorecocloud/Detail.aspx?id=3139\n\n`;
+        mail += `2．顔情報の登録\n\n打刻端末にて、従業員の顔情報を登録します。\n`;
+        mail += `http://help.cckintai.com/shift/colorecocloud/Detail.aspx?id=3456\n\n`;
+        mail += `※顔情報を登録し直す場合は、下記をご参照ください。\n`;
+        mail += `http://help.cckintai.com/shift/colorecocloud/Detail.aspx?id=3450\n\n`;
+    } else if (isFaceWin) {
+        mail += `1．タイムレコーダーの接続\n\n`;
+        mail += `① タイムレコーダーを打刻端末にインストールします。\n`;
+        mail += `https://sdk.shift-cc.com/coloreco-client-face/Publish.html\n\n`;
+        mail += `② 接続文字列を入力し、管理画面とタイムレコーダーを接続します。\n`;
+        mail += `http://help.cckintai.com/shift/colorecocloud/Detail.aspx?id=3139\n\n`;
+        mail += `2．顔情報の登録\n\n打刻端末にて、従業員の顔情報を登録します。\n`;
+        mail += `http://help.cckintai.com/shift/colorecocloud/Detail.aspx?id=3456\n\n`;
+        mail += `※顔情報を登録し直す場合は、下記をご参照ください。\n`;
+        mail += `http://help.cckintai.com/shift/colorecocloud/Detail.aspx?id=3450\n\n`;
+    }
+
+    if (isFaceIpad && !isFaceBoth) {
+        mail += `■事前準備\n\nApple Accountおよびパスワードのご確認をお願いいたします。\n\n`;
+        mail += `1．タイムレコーダーの接続\n\n`;
+        mail += `① iPadのApp Storeで「カラレコ」と検索し、\n　「Coloreco-顔認証-」をダウンロードします。\n`;
+        mail += `② 接続文字列を入力し、管理画面とiPadタイムレコーダーを接続します。\n`;
+        mail += `http://help.cckintai.com/shift/colorecocloud/Detail.aspx?id=3139\n\n`;
+        mail += `2．顔情報の登録\n\niPadにて、従業員の顔情報を登録します。\n`;
+        mail += `http://help.cckintai.com/shift/colorecocloud/Detail.aspx?id=3456\n\n`;
+        mail += `※顔情報を登録し直す場合は、下記をご参照ください。\n`;
+        mail += `http://help.cckintai.com/shift/colorecocloud/Detail.aspx?id=3450\n\n`;
+    }
+
+    if (isPalmWin) {
+        mail += `1．センサードライバーのインストール\n\n`;
+        mail += `① センサードライバーを打刻端末にインストールします。\n`;
+        mail += `https://sdk.shift-cc.com/portal/DL/SensorDriver.zip\n\n`;
+        mail += `② 端末の再起動を行います。\n\n`;
+        mail += `2．タイムレコーダーの接続\n\n`;
+        mail += `① タイムレコーダーを打刻端末にインストールします。\n`;
+        mail += `https://sdk.shift-cc.com/coloreco-client-palm/Publish.html\n\n`;
+        mail += `② 接続文字列を入力し、管理画面とタイムレコーダーを接続します。\n`;
+        mail += `http://help.cckintai.com/shift/colorecocloud/Detail.aspx?id=3139\n\n`;
+        mail += `3．手のひら静脈の登録\n\n`;
+        mail += `打刻端末にて、従業員の手のひら静脈情報を登録します。\n`;
+        mail += `http://help.cckintai.com/shift/colorecocloud/Detail.aspx?id=3458\n\n`;
+        mail += `※手のひら静脈情報を登録し直す場合は、下記をご参照ください。\n`;
+        mail += `http://help.cckintai.com/shift/colorecocloud/Detail.aspx?id=3119\n\n`;
+    }
+
+    if (sysAuth === 'bugyo_cloud' || sysAuth === 'xronos_api' || sysAuth === 'xronos_api_full' || sysAuth === 'xronos_auto') {
+        mail += `------------------------------------------------------------------------\n■ 必要に応じてご対応いただく作業\n------------------------------------------------------------------------\n\n`;
+        mail += `1．従業員が入社した場合\n`;
+
+        if (sysAuth === 'bugyo_cloud') {
+            mail += `http://help.cckintai.com/shift/colorecocloud/Detail.aspx?id=3304\n\n`;
+        } else if (sysAuth === 'xronos_api' || sysAuth === 'xronos_api_full') {
+            mail += `http://help.cckintai.com/shift/colorecocloud/Detail.aspx?id=3572\n\n`;
+        } else {
+            mail += `① クロノスから従業員データ（CSV）をダウンロードします。\n`;
+            mail += `② カラレコ管理画面にてCSVを取り込み、従業員を登録します。\n`;
+            mail += `http://help.cckintai.com/shift/colorecocloud/Detail.aspx?id=3540\n\n`;
+        }
+
+        mail += `2．従業員が退職した場合\n`;
+        mail += `http://help.cckintai.com/shift/colorecocloud/Detail.aspx?id=3120\n\n`;
+    }
+
+    mail += `------------------------------------------------------------------------\n■ ご案内したその他の主な内容\n------------------------------------------------------------------------\n\n`;
+    mail += `1．タイムレコーダーの詳細設定\nhttp://help.cckintai.com/shift/colorecocloud/Detail.aspx?id=3223\n\n`;
+    mail += `2．サポートセンターのご案内\nhttp://help.cckintai.com/shift/colorecocloud/Detail.aspx?id=3122\n\n`;
+    mail += `ご不明な点や、このように設定したいといったご要望などがございましたら、\n`;
+    mail += `お気軽にお申し付けください。\n\n`;
+    mail += `今後とも何卒よろしくお願い申し上げます。\n\n`;
+    mail += BASE_COMMON_SIGNATURE;
+
+    return {
+        subject: `【カラ・レコ】導入支援後のご案内（${cComp}様）`,
+        mail: mail
+    };
+}
+
+// 自動反映
+function generate() {
+    const val = (id) => {
+        const el = document.getElementById(id);
+        return el ? el.value : '';
+    };
+    const isChked = (id) => {
+        const el = document.getElementById(id);
+        return el ? el.checked : false;
+    };
+    const selectedValues = (id) => {
+        const el = document.getElementById(id);
+        return el ? Array.from(el.selectedOptions, option => option.value) : [];
+    };
+    const cComp = val('clientCompany') || "[相手先 会社名]";
+    const cStaff = val('clientStaff') || "[相手先 担当者名]";
+    const myName = val('myName') || "[自分の名前]";
+
+    const signature = getFormattedSignature(myName, false);
+    const vupSignature = getFormattedSignature("", true);
+
+    let subject = "";
+    let mail = "";
+
+    // 操作指導
+    if(currentTab === 'coloreco') {
+        const mailTypeEl = document.querySelector('input[name="colorecoMailType"]:checked');
+        if (mailTypeEl && mailTypeEl.value === 'followup') {
+            const result = generateColorecoFollowUpReply(cComp, cStaff, myName, selectedValues('authMethod'), val('sysAuthMethod'));
+            document.getElementById('output-subject').value = result.subject;
+            document.getElementById('output').value = result.mail;
+            return;
+        }
+        subject = `【カラ・レコ】アカウント発行・操作指導日時のお知らせ（${cComp}様）`;
+
+        const vDateRaw = val('visitDate');
+        const vDateDisp = vDateRaw.replace(/-/g, '/') || "[操作指導実施日]";
+        const vDateFile = vDateRaw.replace(/-/g, '');
+        let authMethods = selectedValues('authMethod');
+        let hasAuth = (method) => authMethods.includes(method);
+        let sysAuth = val('sysAuthMethod');
+        let alc = isChked('optAlcohol');
+        let alcoholCheck = alc && isChked('optVitalAlcohol');
+        let temperatureCheck = alc && isChked('optVitalTemperature');
+        let stepIdx = 0;
+        let stepPreIdx = 0;
+
+        const authName = Array.from(document.getElementById('authMethod').selectedOptions, option => option.textContent.trim()).join('、');
+
+        mail = `${cComp}\n${cStaff}様\n\nお世話になっております。\n「カラ・レコ」開発元シフトの${myName}でございます。\n\n`;
+        mail += `この度は弊社製品をご契約いただき誠にありがとうございます。\n\n`;
+        mail += `「カラ・レコ」のアカウント情報および操作指導の日時につきまして\nご連絡させていただきます。\n\n`;
+        mail += `本メールはサービスをご利用する上で重要なお知らせとなりますので\n大切に保管をお願いいたします。\n\n`;
+
+        if (hasAuth('palmWin')) {
+            const palmDateText = (id, placeholder) => {
+                const date = val(id);
+                return date ? `${formatMonthDay(date)}（${getDayOfWeek(date, true)}）` : placeholder;
+            };
+            mail += `※手のひら静脈の認証機器の発送は${palmDateText('colorecoPalmShipmentDate', '[発送日]')}となります。\n`;
+            mail += `お届けは${palmDateText('colorecoPalmDeliveryStartDate', '[お届け開始日]')}～${palmDateText('colorecoPalmDeliveryEndDate', '[お届け終了日]')}頃を予定しておりますが、配送状況により前後する可能性がございます。\n`;
+            mail += `万が一、${palmDateText('colorecoPalmDeliveryEndDate', '[お届け終了日]')}を過ぎても機器が届かない場合は、お手数ですがご連絡いただけますと幸いです。\n\n`;
+        }
+        
+        mail += ` 【契約情報】\n`;
+        mail += ` ・打刻端末ライセンス： ${val('licCount') || "[ライセンス数]"}ライセンス\n`;
+        mail += ` ・打刻認証方法：${authName}\n`;
+        mail += ` ・契約ID数：${val('idCount') || "[契約ID数]"}ID\n`;
+        if(alc) {
+            mail += ` ・バイタルチェック端末ライセンス：${val('licOptAlcohol') || "[ライセンス数]"}ライセンス\n`;
+            mail += ` ・バイタルチェック契約ID数：${val('idOptAlcohol') || "[契約ID数]"}ID\n`;
+        }
+        mail += ` ・契約期間：${val('startDate').replace(/-/g,'/') || "[開始日]"}～${val('endDate').replace(/-/g,'/') || "[終了日]"}（${getMonthDiff(val('startDate'), val('endDate'))+1} ヶ月）\n`;
+        mail += `  ※納品月の翌月1日より契約スタートとなります。\n\n`;
+
+        mail += `操作教育の実施日および資料をお送りいたします。\n\n`;
+        const visitMethodEl = document.querySelector('input[name="visitMethod"]:checked');
+        const isWebVisit = visitMethodEl && visitMethodEl.value === 'web';
+        if (isWebVisit) {
+            mail += ` 【操作指導実施日およびURL】\n`;
+            mail += ` ・日時：${vDateDisp}（${getDayOfWeek(vDateRaw, true)}） ${val('startTime')}～${val('endTime')}\n`;
+            mail += ` ・URL\n ${val('visitUrl') || "[実施URL]"}\n\n`;
+            mail += `  ※作業の進捗により時間が前後する場合がございます。\n\n`;
+        } else {
+            mail += ` 【操作指導実施日および実施場所】\n`;
+            mail += ` ・日時：${vDateDisp}（${getDayOfWeek(vDateRaw, true)}） ${val('startTime')}～${val('endTime')}\n`;
+            mail += ` ・場所：〒${val('zip') || "[郵便番号]"}　${val('address') || "[住所]"}\n\n`;
+            mail += `  ※作業の進捗により時間が前後する場合がございます。\n`;
+            mail += `  ※住所が異なる場合、実施場所となる住所をご連絡ください。\n\n`;
+        }
+
+
+        mail += ` 【ご案内資料】\n`;
+        mail += ` ・使用規約、SLA、個人情報の取り扱いなどに関するご案内書類となります。\n`;
+        mail += `   お時間がある際に一読ください。\n\n`;
+
+        mail += ` 【操作指導資料】\n`;
+        mail += ` ${stepIdx = stepIdx + 1}）「カラ・レコ」操作指導までの流れ\n →本稼働までの流れとなります。\n\n`;
+        mail += ` ${stepIdx = stepIdx + 1}）カラ・レコ操作教育カリキュラムテンプレート\n →当日実施させていただく操作指導内容となります。\n\n`;
+        mail += `   前半はインストール作業となるため30分ほどご同席をお願いいたします。\n   後半は操作説明となるためご同席をお願いいたします。\n\n`;
+
+        if(hasAuth('faceWin') || hasAuth('faceIpad') || hasAuth('faceunknown') || hasAuth('faceMobile')) {
+            mail += ` ${stepIdx = stepIdx + 1}）顔登録時の注意点\n\n`
+        };
+
+        if(hasAuth('palmWin')) {
+        mail += ` ${stepIdx = stepIdx + 1}）PalmSecureスタンダードマニュアル\n`;
+        mail += ` ${stepIdx = stepIdx + 1}）手のひら静脈置き方ポスター\n`;
+        mail += ` ${stepIdx = stepIdx + 1}）正しく認証できない手のかざし方\n`;
+        mail += ` ${stepIdx = stepIdx + 1}）「カラ・レコ」手のひら静脈登録の流れ\n`;
+        mail += ` →静脈認証をご利用いただく際のマニュアルやご注意いただく資料となりますのでご活用ください。\n\n`;
+        };
+
+        if(alcoholCheck) {
+            if(!hasAuth('palmWin')) {
+                mail += ` ${stepIdx = stepIdx + 1}）「カラ・レコ」顔認証＋アルコールチェックの流れ\n`;
+            }
+            mail += ` ${stepIdx = stepIdx + 1}）アルコール検知器消耗品について\n`;
+            mail += ` →バイタルチェック（アルコール）をご利用いただく際のご案内資料となります。\n\n`;
+        }
+
+        mail += ` ${stepIdx = stepIdx + 1}）カラ・レコ操作教育実施前確認シート\n`;
+        mail += ` →操作教育実施前にご準備いただく環境/情報のチェックシートとなります。\n  お手数ですが内容のご確認をお願いいたします。\n\n`;
+
+        mail += `------------------------------------------------------------------------\n■ ご準備物\n------------------------------------------------------------------------\n\n`;
+        mail += `当日は以下についてご準備お願いいたします。\n\n`;
+
+        const needsWindowsDevice = hasAuth('faceWin') || hasAuth('palmWin') || hasAuth('icWin') || hasAuth('faceunknown') || hasAuth('icunknown');
+        const needsIpadDevice = hasAuth('faceIpad') || hasAuth('icIpad') || hasAuth('faceunknown') || hasAuth('icunknown');
+        const needsMobileDevice = hasAuth('faceMobile') || hasAuth('icMobile');
+        if(needsWindowsDevice) {
+            mail += ` ${stepPreIdx = stepPreIdx + 1}）打刻端末（WindowsPC）のご準備\n→当日は打刻端末を１台ご用意ください。\n\n`;
+        }
+        if(needsIpadDevice) {
+            mail += ` ${stepPreIdx = stepPreIdx + 1}）打刻端末（iPad）のご準備\n→当日は打刻端末を１台ご用意ください。\n\n`;
+            mail += `※事前にApple Accountの取得をお願いいたします。\n取得方法（Apple Supportサイト）\n`;
+            mail += `https://support.apple.com/ja-jp/108647?device-type=iphone\n\n`;
+        }
+        if(needsMobileDevice) {
+            mail += ` ${stepPreIdx = stepPreIdx + 1}）モバイル端末のご準備\n→当日はモバイル端末をご用意ください。\n\n`;
+        }
+
+        if(temperatureCheck) {
+            mail += ` ${stepPreIdx = stepPreIdx + 1}）バイタルチェック検知器について\n →バイタルチェック検知器のご準備をお願いいたします。\n\n`;
+        } else if(alcoholCheck) {
+            mail += ` ${stepPreIdx = stepPreIdx + 1}）アルコールチェック検知器について\n →アルコールチェック検知器のご準備をお願いいたします。\n\n`;
+        }
+
+        if(alc && (hasAuth('faceWin') || hasAuth('faceIpad') || hasAuth('faceunknown') || hasAuth('faceMobile'))) {
+                mail += ` ${stepPreIdx = stepPreIdx + 1}）ICカードリーダー（免許証有効期限管理用）のご準備\n →免許証有効期限管理をご利用になりたい場合、\n  ICカードリーダーのご準備をお願いいたします。\n  ※免許証有効期限管理を利用されない場合、ご準備は不要です。\n\n`;
+                mail += ` ＜推奨機器＞\n ■ソニー社製　PaSoRi （RC-S300）\n  https://www.iodata.jp/product/interface/iccardreader/ble-nfc/\n\n`;
+
+                mail += ` ${stepPreIdx = stepPreIdx + 1}）WindowsPCのBluetooth通信について\n`;
+                mail += `   打刻端末がWindowsの場合、Bluetooth通信が行えるかご確認ください。\n  ※Bluetooth(r) Ver5.0以上 Low Energy（BLE）対応のもの\n  ※Bluetooth通信ができない場合、無線レシーバーをご準備ください。\n`;
+                mail += `   動作確認済機器（BUFFALO社製：BSBT5D200BK）\n   https://www.buffalo.jp/product/detail/bsbt5d200bk.html\n\n`;
+        }
+
+        if(hasAuth('palmWin')) {
+            mail += ` ${stepPreIdx = stepPreIdx + 1}）手のひら静脈センサーのご準備\n\n`;
+        }
+
+        mail += ` ${stepPreIdx = stepPreIdx + 1}）打刻端末がインターネットに接続できる環境をご用意ください。\n\n`;
+
+        // 連携システム
+        if (sysAuth === 'xronos_api' || sysAuth === 'xronos_api_full' || sysAuth === 'xronos_auto') {
+            mail += ` ${stepPreIdx = stepPreIdx + 1}）クロノス勤怠に接続できる端末をご用意ください。\n\n`;
+        }
+
+        if (sysAuth === 'xronos_api' || sysAuth === 'xronos_api_full') {
+            mail += ` ${stepPreIdx = stepPreIdx + 1}）従業員情報の同期／打刻データの連携をAPIで行う場合、\n`;
+            mail += ` XronosLinkにて下記情報のご準備をお願いいたします。\n`;
+            mail += ` ・トークン発行ID\n`;
+            mail += ` ・シークレットコード\n`;
+            mail += ` ・鍵\n`;
+            mail += ` 上記は、クロノスとの連携設定を行うために必要な情報となります。\n`;
+            mail += ` ご不明な場合は、当日XronosLinkへログインできる端末をご準備ください。\n\n`;
+            mail += ` ${stepPreIdx = stepPreIdx + 1}）XronosLinkにて、打刻を行う従業員情報の同期をお願いいたします。\n\n`;
+        }
+
+        if (sysAuth === 'xronos_api_full') {
+            mail += ` ${stepPreIdx = stepPreIdx + 1}）X’sionでの設定を事前にお願いいたします。\n\n`;
+        }
+
+        if (sysAuth === 'bugyo_cloud') {
+            mail += ` ${stepPreIdx = stepPreIdx + 1}）奉行クラウドのダウンロードURL、OBCiD/パスワード（管理者権限）のご準備\n`;
+            mail += ` →奉行クラウドとの連携設定を行うため上記の情報をご準備ください。\n`;
+            mail += ` ※ダウンロードURLについては奉行クラウド導入時のメールをご参照、\n`;
+            mail += ` 　もしくは奉行クラウド環境にてご確認ください。\n`;
+            mail += ` 　ご不明な場合、当日ログインできる端末をご準備ください。\n\n`;
+        }
+
+        mail += `------------------------------------------------------------------------\n■ アカウント情報\n------------------------------------------------------------------------\n\n`;
+        mail += `・ログインURL\n${val('loginUrl') || "[ログインURL]"}\n\n`;
+        mail += `・admin管理者ユーザID：${val('adminId') || "[管理者ユーザID]"}\n・admin管理者パスワード：${val('adminPw') || "[管理者パスワード]"}\n\n`;
+        mail += `------------------------------------------------------------------------\n■ アプリケーションインストールURL\n------------------------------------------------------------------------\n\n`;
+
+        if(hasAuth('faceWin')) {
+            mail += `・Windows版打刻アプリケーション（顔認証）\n https://sdk.shift-cc.com/coloreco-client-face/Publish.html\n\n`;
+        }
+
+        if(hasAuth('faceIpad')) {
+            mail += `・iPad版打刻アプリケーション（顔認証）\n AppStoreより「Coloreco-顔認証-」をインストールしてください。\n\n`;
+        }
+
+        if(hasAuth('faceunknown')) {
+            mail += `・Windows版打刻アプリケーション（顔認証）\n https://sdk.shift-cc.com/coloreco-client-face/Publish.html\n\n`;
+            mail += `・iPad版打刻アプリケーション（顔認証）\n AppStoreより「Coloreco-顔認証-」をインストールしてください。\n\n`;
+        }
+
+        if(hasAuth('palmWin')) {
+            mail += `・Windows版打刻アプリ（手のひら静脈）\n https://sdk.shift-cc.com/coloreco-client-palm/Publish.html\n\n・手のひら静脈センサードライバー\n https://sdk.shift-cc.com/portal/DL/SensorDriver.zip\n\n`;
+        }
+
+        if(hasAuth('icWin')) {
+            mail += `・Windows版打刻アプリ（カメレオンコード）\n https://sdk.shift-cc.com/coloreco-client-cc/Publish.html\n\n`;
+        }
+
+        if(hasAuth('icIpad')) {
+            mail += `・iPad版打刻アプリ（カメレオンコード）\n AppStoreより「coloreco-勤怠打刻のリアルタイム一元管理」をインストールしてください。\n\n`;
+        }
+
+        if(hasAuth('icunknown')) {
+            mail += `・Windows版打刻アプリ（カメレオンコード）\n https://sdk.shift-cc.com/coloreco-client-cc/Publish.html\n\n`;
+            mail += `・iPad版打刻アプリ（カメレオンコード）\n AppStoreより「coloreco-勤怠打刻のリアルタイム一元管理」をインストールしてください。\n\n`;
+        }
+
+        // 自動連携
+        if(sysAuth == 'obc_auto') {
+            mail += `・自動連携アプリケーション（就業奉行）\n https://sdk.shift-cc.com/coloreco-autoconnectionapp/Publish.html\n\n`;
+        } else if(sysAuth == 'daijin_auto') {
+            mail += `・自動連携アプリケーション（就業大臣）\n https://sdk.shift-cc.com/coloreco-autoconnectionapp-daijin/Publish.html\n\n`;
+        } else if(sysAuth == 'xronos_auto') {
+            mail += `・自動連携アプリケーション（Xronos）\n https://sdk.shift-cc.com/coloreco-autoconnectionapp-xronos/Publish.html\n\n`;
+        }
+
+        mail += `------------------------------------------------------------------------\n■ 各種マニュアル\n------------------------------------------------------------------------\n\n`;
+
+        if (sysAuth === 'xronos_api') {
+            mail += `・管理者マニュアル\n https://sdk.shift-cc.com/portal/DL/Coloreco/Coloreco_Manual_WebManagement.pdf\n\n`;
+            mail += `・Windows版打刻アプリケーション（顔認証）\n https://sdk.shift-cc.com/portal/DL/Coloreco/Coloreco_Manual_Client_Windows_face.pdf\n\n`;
+            mail += `・自動連携アプリケーション（Xronos）\n https://sdk.shift-cc.com/portal/DL/Coloreco/Coloreco_Manual_Client_AutoConnection_forDaijin.pdf\n\n`;
+        } else {
+            mail += `・管理者マニュアル\n https://sdk.shift-cc.com/portal/DL/Coloreco/Coloreco_Manual_WebManagement.pdf\n\n`;
+
+            if(hasAuth('faceWin')) {
+                mail += `・Windows版打刻アプリケーション（顔認証）\n https://sdk.shift-cc.com/portal/DL/Coloreco/Coloreco_Manual_Client_Windows_face.pdf\n\n`;
+            }
+
+            if(hasAuth('faceIpad')) {
+                mail += `・iPad版打刻アプリケーション（顔認証）\n https://sdk.shift-cc.com/portal/DL/Coloreco/Coloreco_Manual_Client_iPad_face.pdf\n\n`;
+            }
+
+            if(hasAuth('faceunknown')) {
+                mail += `・Windows版打刻アプリケーション（顔認証）\n https://sdk.shift-cc.com/portal/DL/Coloreco/Coloreco_Manual_Client_Windows_face.pdf\n\n`;
+                mail += `・iPad版打刻アプリケーション（顔認証）\n https://sdk.shift-cc.com/portal/DL/Coloreco/Coloreco_Manual_Client_iPad_face.pdf\n\n`;
+            }
+
+            if(hasAuth('palmWin')) {
+                mail += `・Windows版打刻アプリ（手のひら静脈）\n https://sdk.shift-cc.com/portal/DL/Coloreco/Coloreco_Manual_Client_Windows_Palm.pdf\n\n`;
+            }
+
+            if(hasAuth('icWin')) {
+                mail += `・Windows版打刻アプリ（カメレオンコード）\n https://sdk.shift-cc.com/portal/DL/Coloreco/Coloreco_Manual_Client_Windows_CC.pdf\n\n`;
+            }
+
+            if(hasAuth('icIpad')) {
+                mail += `・iPad版打刻アプリ（カメレオンコード）\n https://sdk.shift-cc.com/portal/DL/Coloreco/Coloreco_Manual_Client_iPad.pdf\n\n`;
+            }
+
+            if(hasAuth('icunknown')) {
+                mail += `・Windows版打刻アプリ（カメレオンコード）\n https://sdk.shift-cc.com/portal/DL/Coloreco/Coloreco_Manual_Client_Windows_CC.pdf\n\n`;
+                mail += `・iPad版打刻アプリ（カメレオンコード）\n https://sdk.shift-cc.com/portal/DL/Coloreco/Coloreco_Manual_Client_iPad.pdf\n\n`;
+            }
+
+            // 自動連携
+            if(sysAuth == 'obc_auto') {
+                mail += `・自動連携アプリケーション（就業奉行）\n https://sdk.shift-cc.com/portal/DL/Coloreco/Coloreco_Manual_Client_AutoConnection.pdf\n\n`;
+            } else if(sysAuth == 'daijin_auto') {
+                mail += `・自動連携アプリケーション（就業大臣）\n https://sdk.shift-cc.com/portal/DL/Coloreco/Coloreco_Manual_Client_AutoConnection_forDaijin.pdf\n\n`;
+            } else if(sysAuth == 'xronos_auto') {
+                mail += `・自動連携アプリケーション（Xronos）\n https://sdk.shift-cc.com/portal/DL/Coloreco/Coloreco_Manual_Client_AutoConnection_forDaijin.pdf\n\n`;
+            }
+        }
+
+        if(alc) {
+            mail += `・アルコール検査機能マニュアル\n https://sdk.shift-cc.com/portal/DL/Coloreco/Coloreco_Manual_AlcoholInspection.pdf\n\n`;
+        }
+
+        mail += `内容についてご不明な点がございましたら、\n`;
+        mail += `ご遠慮なく弊社サポートセンターまでお問い合わせください。\n\n`;
+        mail += `ご確認の程、よろしくお願いいたします。\n\n`;
+        mail += signature;
+
+    } else if(currentTab === 'renew') {
+        const targetEl = document.querySelector('input[name="renewTarget"]:checked');
+        const target = targetEl ? targetEl.value : 'customer';
+        const tMemo = val('tashibuMemo') || "[処理内容]";
+
+        if (target === 'customer') {
+            subject = `【カラ・レコ】ご契約情報更新のお知らせ`;
+
+            mail = `${cComp}\n${cStaff}様\n\nいつもお世話になっております。\n打刻管理システム「カラ・レコ」サポートセンター ${myName}でございます。\n\nこの度はご契約を継続いただき、誠にありがとうございます。\nご契約情報の更新処理が完了いたしましたので、ご連絡いたします。\n\nクラウド版管理画面＞その他設定＞企業情報で\n`;
+
+            const lDateRaw = val('limitDate');
+            const lDate = lDateRaw ? lDateRaw.replace(/-/g, '/') : "[利用期限]";
+            mail += `利用期限が${lDate}に更新されていることをご確認ください。\n`;
+
+            mail += `\nご不明な点がございましたら、メールやお電話にて\nご連絡いただけますと幸いです。\n\n今後ともよろしくお願いいたします。\n\n`;
+            mail += signature;
+        } else {
+            subject = `【株式会社シフト】カラレコ契約更新処理について（${cComp}様)`;
+            mail = `田澁さん\n\nお疲れ様です。${myName}です。\n\nカラ・レコで下記の契約更新処理を行いました。\n\n◆${cComp}様\n${tMemo}\n\nご確認の程よろしくお願いいたします。\n\n`;
+            mail += signature;
+        }
+    // ライセンス追加
+   } else if(currentTab === 'lic') {
+        const targetEl = document.querySelector('input[name="licTarget"]:checked');
+        const target = targetEl ? targetEl.value : 'customer';
+
+        if (target === 'customer') {
+            const chkID = isChked('licTypeID');
+            const chkDevice = isChked('licTypeDevice');
+            
+            // 件名の条件分岐を設定
+            if (chkID && chkDevice) {
+                subject = `【カラ・レコ】利用可能従業員数／打刻クライアント台数追加のお知らせ`;
+            } else if (chkID) {
+                subject = `【カラ・レコ】利用可能従業員数追加のお知らせ`;
+            } else if (chkDevice) {
+                subject = `【カラ・レコ】打刻クライアント台数追加のお知らせ`;
+            }
+            
+            let changeLines = [];
+            let checkLabels = [];
+            
+            if (chkID) {
+                const bNum = val('licIdBefore') || "[変更前ID数]";
+                const aNum = val('licIdAfter') || "[変更後ID数]";
+                changeLines.push(`利用可能従業員数：${bNum}IDから${aNum}IDに変更しております。`);
+                checkLabels.push("「利用可能従業員数」");
+            }
+            if (chkDevice) {
+                const bNum = val('licDeviceBefore') || "[変更前デバイス数]";
+                const aNum = val('licDeviceAfter') || "[変更後デバイス数]";
+                changeLines.push(`打刻クライアント台数：${bNum}台から${aNum}台に変更しております。`);
+                checkLabels.push("「打刻クライアント台数」");
+            }
+            
+            if (changeLines.length === 0) {
+                changeLines.push(`[ライセンス種別]`);
+            }
+
+            mail = `${cComp}\n${cStaff}様\n\n`;
+            mail += `いつもお世話になっております。\n`;
+            mail += `打刻管理システム「カラ・レコ」サポートセンター ${myName}でございます。\n\n`;
+            mail += `ご契約情報の更新処理が完了いたしましたので、ご連絡いたします。\n\n`;
+            
+            changeLines.forEach(line => {
+                mail += `${line}\n`;
+            });
+            
+            mail += `管理画面＞その他設定＞企業情報＞ライセンス情報より\n`;
+            mail += `${checkLabels.join('および')}をご確認くださいませ。\n\n`;
+            mail += `今後ともどうぞよろしくお願いいたします。\n\n`;
+            mail += signature;
+        } else {
+            subject = `【株式会社シフト】カラレコライセンス追加処理について（${cComp}様）`;
+            const licMemo = val('licTashibuMemo') || "※ 商流：シフト→インフォファーム→OBC\n※ 2026年1月請求\n※ 契約ID数：880→930ID";
+
+            mail = `田澁さん\n\nお疲れ様です。${myName}です。\n\n`;
+            mail += `カラ・レコで下記のライセンス追加処理を行いました。\n\n`;
+            mail += `◆${cComp}様\n`;
+            mail += `${licMemo}\n\n`;
+            mail += `ご確認の程よろしくお願いいたします。\n\n`;
+            mail += signature;
+        }
+
+    // 初回設定
+   } else if(currentTab === 'edu') {
+
+        const typeEl = document.querySelector('input[name="setupType"]:checked');
+        const setupType = typeEl ? typeEl.value : 'noticeEdu';
+
+        let authMethods = selectedValues('authMethodEdu');
+        let hasAuth = (method) => authMethods.includes(method);
+        let sysAuth = val('sysAuthMethodEdu');
+        let alcNotice = isChked('optAlcoholNoticeEdu');
+
+        subject = "【カラ・レコ】アカウント発行のお知らせ及び初回設定サポートのご案内";
+
+        if (setupType === 'noticeEdu') {    
+            const sDateRaw = val('eduSupportStartDate');
+            const sDate = formatMonthDay(sDateRaw);
+            const sDay = sDateRaw ? `（${getDayOfWeek(sDateRaw, true)}）` : "";
+            const evStart = formatJapanDate(val('eduEvalStart')) || "[20●●年●月●日]";
+            const evEnd = formatJapanDate(val('eduEvalEnd')) || "[20●●年●月●日]";
+            const palmDateText = (id, placeholder) => {
+                const date = val(id);
+                return date ? `${formatMonthDay(date)}（${getDayOfWeek(date, true)}）` : placeholder;
+            };
+            
+            mail = `${cComp}\n${cStaff}様\n\n`;
+            mail += `打刻管理システム「カラ・レコ」サポートセンターでございます。\n`;
+            mail += `この度は、「カラ・レコ」にお申し込みいただき、誠にありがとうございます。\n\n`;
+            mail += `早速ではございますが、${cComp}様の評価環境アカウントの発行が完了いたしました。\n`;
+            mail += `下記内容をご確認のうえ、全権管理者権限（admin）にてご自由に設定を行ってください。\n\n`;
+            mail += `なお、初期設定につきましては、Zoomまたはお電話にてサポートさせていただきます。\n`;
+            mail += `お手数ではございますが、候補日をご記入のうえ、ご返信をお願いいたします。\n\n`;
+            mail += `${sDate}${sDay} 以降の弊社営業日にて、ご都合のよい日時を2～3候補ほどお知らせいただけますと幸いです。\n`;
+            mail += `なお、所要時間は約1時間を予定しております。\n\n`;
+            mail += `【初期設定サポート希望日時】\n`;
+            mail += `第一希望 ：   月   日   ：   ～\n`;
+            mail += `第二希望 ：   月   日   ：   ～\n`;
+            mail += `第三希望 ：   月   日   ：   ～\n\n`;
+            if (hasAuth('palmWinEdu')) {
+                mail += `※手のひら静脈の認証機器の発送は${palmDateText('eduPalmShipmentDate', '[発送日]')}となります。\n`;
+                mail += `お届けは${palmDateText('eduPalmDeliveryStartDate', '[お届け開始日]')}～${palmDateText('eduPalmDeliveryEndDate', '[お届け終了日]')}頃を予定しておりますが、配送状況により前後する可能性がございます。\n`;
+                mail += `万が一、${palmDateText('eduPalmDeliveryEndDate', '[お届け終了日]')}を過ぎても機器が届かない場合は、お手数ですがご連絡いただけますと幸いです。\n\n`;
+            }
+            
+            mail += `------------------------------------------------------------\n`;
+            mail += `■ 評価期間について\n`;
+            mail += `------------------------------------------------------------\n\n`;
+            mail += `・評価期間は、${evStart} ～ ${evEnd}までとなります。\n\n`;
+            mail += `※ご評価は、上記期間内にお願いいたします。\n`;
+            mail += `　期間内に継続利用の可否についてご回答ください。\n`;
+            mail += `　評価終了日までにご回答をいただけない場合は、\n`;
+            mail += `　誠に恐れ入りますが、貴社アカウントをクローズさせていただきます。\n\n`;
+            
+            mail += `------------------------------------------------------------\n`;
+            mail += `■ アカウント情報\n`;
+            mail += `------------------------------------------------------------\n\n`;
+            mail += `・ログインURL\n${val('eduLoginUrl') || "[ログインURL]"}\n\n`;
+            mail += `・admin管理者ユーザID ：${val('eduAdminId') || "[管理者ユーザID]"}\n`;
+            mail += `・admin管理者パスワード：${val('eduAdminPw') || "[管理者パスワード]"}\n\n`;
+
+            mail += `------------------------------------------------------------\n`;
+            mail += `■ アプリケーションインストールURL\n`;
+            mail += `------------------------------------------------------------\n\n`;
+
+        if(hasAuth('faceWinEdu')) {
+            mail += `・Windows版打刻アプリケーション（顔認証）\n https://sdk.shift-cc.com/coloreco-client-face/Publish.html\n\n`;
+        }
+
+        if(hasAuth('faceIpadEdu')) {
+            mail += `・iPad版打刻アプリケーション（顔認証）\n AppStoreより「Coloreco-顔認証-」をインストールしてください。\n\n`;
+        }
+
+        if(hasAuth('faceunknownEdu')) {
+            mail += `・Windows版打刻アプリケーション（顔認証）\n https://sdk.shift-cc.com/coloreco-client-face/Publish.html\n\n`;
+            mail += `・iPad版打刻アプリケーション（顔認証）\n AppStoreより「Coloreco-顔認証-」をインストールしてください。\n\n`;
+        }
+
+        if(hasAuth('palmWinEdu')) {
+            mail += `・Windows版打刻アプリ（手のひら静脈）\n https://sdk.shift-cc.com/coloreco-client-palm/Publish.html\n\n・手のひら静脈センサードライバー\n https://sdk.shift-cc.com/portal/DL/SensorDriver.zip\n\n`;
+        }
+
+        if(hasAuth('icWinEdu')) {
+            mail += `・Windows版打刻アプリ（カメレオンコード）\n https://sdk.shift-cc.com/coloreco-client-cc/Publish.html\n\n`;
+        }
+
+        if(hasAuth('icIpadEdu')) {
+            mail += `・iPad版打刻アプリ（カメレオンコード）\n AppStoreより「coloreco-勤怠打刻のリアルタイム一元管理」をインストールしてください。\n\n`;
+        }
+
+        if(hasAuth('icunknownEdu')) {
+            mail += `・Windows版打刻アプリ（カメレオンコード）\n https://sdk.shift-cc.com/coloreco-client-cc/Publish.html\n\n`;
+            mail += `・iPad版打刻アプリ（カメレオンコード）\n AppStoreより「coloreco-勤怠打刻のリアルタイム一元管理」をインストールしてください。\n\n`;
+        }
+
+        // 自動連携
+        if(sysAuth == 'obc_autoEdu') {
+            mail += `・自動連携アプリケーション（就業奉行）\n https://sdk.shift-cc.com/coloreco-autoconnectionapp/Publish.html\n\n`;
+        } else if(sysAuth == 'daijin_autoEdu') {
+            mail += `・自動連携アプリケーション（就業大臣）\n https://sdk.shift-cc.com/coloreco-autoconnectionapp-daijin/Publish.html\n\n`;
+        } else if(sysAuth == 'xronos_autoEdu') {
+            mail += `・自動連携アプリケーション（Xronos）\n https://sdk.shift-cc.com/coloreco-autoconnectionapp-xronos/Publish.html\n\n`;
+        }
+
+            mail += `------------------------------------------------------------\n`;
+            mail += `■ 各種マニュアル\n`;
+            mail += `------------------------------------------------------------\n\n`;
+ 
+        mail += `・管理者マニュアル\n https://sdk.shift-cc.com/portal/DL/Coloreco/Coloreco_Manual_WebManagement.pdf\n\n`;
+
+        if(hasAuth('faceWinEdu')) {
+            mail += `・Windows版打刻アプリケーション（顔認証）\n https://sdk.shift-cc.com/portal/DL/Coloreco/Coloreco_Manual_Client_Windows_face.pdf\n\n`;
+        }
+
+        if(hasAuth('faceIpadEdu')) {
+            mail += `・iPad版打刻アプリケーション（顔認証）\n https://sdk.shift-cc.com/portal/DL/Coloreco/Coloreco_Manual_Client_iPad_face.pdf\n\n`;
+        }
+
+        if(hasAuth('faceunknownEdu')) {
+            mail += `・Windows版打刻アプリケーション（顔認証）\n https://sdk.shift-cc.com/portal/DL/Coloreco/Coloreco_Manual_Client_Windows_face.pdf\n\n`;
+            mail += `・iPad版打刻アプリケーション（顔認証）\n https://sdk.shift-cc.com/portal/DL/Coloreco/Coloreco_Manual_Client_iPad_face.pdf\n\n`;
+        }
+
+        if(hasAuth('palmWinEdu')) {
+            mail += `・Windows版打刻アプリ（手のひら静脈）\n https://sdk.shift-cc.com/portal/DL/Coloreco/Coloreco_Manual_Client_Windows_Palm.pdf\n\n`;
+        }
+
+        if(hasAuth('icWinEdu')) {
+            mail += `・Windows版打刻アプリ（カメレオンコード）\n https://sdk.shift-cc.com/portal/DL/Coloreco/Coloreco_Manual_Client_Windows_CC.pdf\n\n`;
+        }
+
+        if(hasAuth('icIpadEdu')) {
+            mail += `・iPad版打刻アプリ（カメレオンコード）\n https://sdk.shift-cc.com/portal/DL/Coloreco/Coloreco_Manual_Client_iPad.pdf\n\n`;
+        }
+
+        if(hasAuth('icunknownEdu')) {
+            mail += `・Windows版打刻アプリ（カメレオンコード）\n https://sdk.shift-cc.com/portal/DL/Coloreco/Coloreco_Manual_Client_Windows_CC.pdf\n\n`;
+            mail += `・iPad版打刻アプリ（カメレオンコード）\n https://sdk.shift-cc.com/portal/DL/Coloreco/Coloreco_Manual_Client_iPad.pdf\n\n`;
+        }
+
+        // 自動連携
+        if(sysAuth == 'obc_autoEdu') {
+            mail += `・自動連携アプリケーション（就業奉行）\n https://sdk.shift-cc.com/portal/DL/Coloreco/Coloreco_Manual_Client_AutoConnection.pdf\n\n`;
+        } else if(sysAuth == 'daijin_autoEdu') {
+            mail += `・自動連携アプリケーション（就業大臣）\n https://sdk.shift-cc.com/portal/DL/Coloreco/Coloreco_Manual_Client_AutoConnection_forDaijin.pdf\n\n`;
+        } else if(sysAuth == 'xronos_autoEdu') {
+            mail += `・自動連携アプリケーション（Xronos）\n https://sdk.shift-cc.com/portal/DL/Coloreco/Coloreco_Manual_Client_AutoConnection_forDaijin.pdf\n\n`;
+        }
+
+        if(alcNotice) {
+            mail += `・アルコール検査機能マニュアル\n https://sdk.shift-cc.com/portal/DL/Coloreco/Coloreco_Manual_AlcoholInspection.pdf\n\n`;
+        }
+
+            mail += `操作・設定等でご不明な点がございましたら、\n`;
+            mail += `ご遠慮なく弊社サポートセンターまでお問い合わせください。\n\n`;
+            mail += `以上、お手数をおかけしますが、\n`;
+            mail += `どうぞよろしくお願い申し上げます。\n\n`;
+            mail += signature;
+        } else {
+            const mDateRaw = val('maintenanceDateEdu');
+            const mDate = formatMonthDay(mDateRaw, "[月日]");
+            const mWeek = mDateRaw ? `（${getDayOfWeek(mDateRaw, true)}）` : "（[曜日]）";
+            const mTime = val('maintenanceTimeEdu') || "[時間]";
+            const methodName = val('EduMethod') === 'faceIpad' ? 'お電話' : 'Zoom';
+            const meetingUrl = val('zoomUrl') || "[URL]";
+
+            subject = "【カラ・レコ】初回設定サポート日時のご案内";
+
+            mail = `${cComp}\n${cStaff}様\n\n`;
+            mail += `打刻管理システム「カラ・レコ」サポートセンター${myName}でございます。\n`;
+            if (methodName === 'Zoom') {
+                mail += `ご返信、ならびに日程のご連絡ありがとうございます。\n\n`;
+                mail += `それでは${mDate}${mWeek} ${mTime}より、Zoomにてご案内させていただきます。\n`;
+                mail += `お時間は、1時間ほどを予定しております。\n`;
+                mail += `※作業の進捗により時間が前後する場合がございます。\n\n`;
+                mail += `お時間になりましたら、下記URLへご入室をお願いいたします。\n\n`;
+                mail += `------------------------------------------------------------------------------------------\n\n`;
+                mail += `${meetingUrl}\n\n`;
+                mail += `------------------------------------------------------------------------------------------\n\n`;
+            } else {
+                mail += `ご返信、ならびに日程のご連絡ありがとうございます。\n\n`;
+                mail += `それでは${mDate}${mWeek} ${mTime}より、お電話にてご案内させていただきます。\n`;
+                mail += `お時間は、1時間ほどを予定しております。\n`;
+                mail += `※作業の進捗により時間が前後する場合がございます。\n\n`;
+                mail += `お時間になりましたら、弊社よりお電話にてご連絡いたします。\n\n`;
+            }
+
+            mail += `また、お手数ですが、当日までに以下をご用意ください。\n\n`;
+                let preparationIndex = 0;
+
+                const needsWindowsDevice = hasAuth('faceWinEdu') || hasAuth('palmWinEdu') || hasAuth('icWinEdu') || hasAuth('faceunknownEdu') || hasAuth('icunknownEdu');
+                const needsIpadDevice = hasAuth('faceIpadEdu') || hasAuth('icIpadEdu') || hasAuth('faceunknownEdu') || hasAuth('icunknownEdu');
+                const needsMobileDevice = hasAuth('faceMobileEdu') || hasAuth('icMobileEdu');
+                if (needsWindowsDevice) {
+                    preparationIndex++;
+                    mail += `${preparationIndex}）打刻端末（WindowsPC）のご準備\n`;
+                    mail += `→当日は打刻端末を１台ご用意ください。\n\n`;
+                }
+                if (needsIpadDevice) {
+                    preparationIndex++;
+                    mail += `${preparationIndex}）打刻端末（iPad）のご準備\n`;
+                    mail += `→当日は打刻端末を１台ご用意ください。\n\n`;
+                    mail += `※iPadをご利用の場合、事前にApple Accountの取得をお願いいたします。\n`;
+                    mail += `取得方法（Apple Supportサイト）\n`;
+                    mail += `https://support.apple.com/ja-jp/108647?device-type=iphone\n\n`;
+                }
+                if (needsMobileDevice) {
+                    preparationIndex++;
+                    mail += `${preparationIndex}）モバイル端末のご準備\n`;
+                    mail += `→当日はモバイル端末をご用意ください。\n\n`;
+                }
+
+                if (alcNotice && (hasAuth('faceWinEdu') || hasAuth('faceIpadEdu') || hasAuth('faceunknownEdu') || hasAuth('faceMobileEdu'))) {
+                        preparationIndex++;
+                        mail += `${preparationIndex}）バイタルチェック検知器について\n`;
+                        mail += ` →バイタルチェック検知器のご準備をお願いいたします。\n\n`;
+                        preparationIndex++;
+                        mail += `${preparationIndex}）ICカードリーダー（免許証有効期限管理用）のご準備\n`;
+                        mail += ` →免許証有効期限管理をご利用になりたい場合、\n`;
+                        mail += `  ICカードリーダーのご準備をお願いいたします。\n`;
+                        mail += `  ※免許証有効期限管理を利用されない場合、ご準備は不要です。\n\n`;
+                        mail += ` ＜推奨機器＞\n ■ソニー社製　PaSoRi （RC-S300）\n`;
+                        mail += `  https://www.iodata.jp/product/interface/iccardreader/ble-nfc/\n\n`;
+                        preparationIndex++;
+                        mail += `${preparationIndex}）WindowsPCのBluetooth通信について\n`;
+                        mail += `   打刻端末がWindowsの場合、Bluetooth通信が行えるかご確認ください。\n`;
+                        mail += `  ※Bluetooth(r) Ver5.0以上 Low Energy（BLE）対応のもの\n`;
+                        mail += `  ※Bluetooth通信ができない場合、無線レシーバーをご準備ください。\n`;
+                        mail += `   動作確認済機器（BUFFALO社製：BSBT5D200BK）\n`;
+                        mail += `   https://www.buffalo.jp/product/detail/bsbt5d200bk.html\n\n`;
+                }
+
+                if (hasAuth('palmWinEdu')) {
+                    preparationIndex++;
+                    mail += `${preparationIndex}）手のひら静脈センサーのご準備\n\n`;
+                }
+
+                preparationIndex++;
+                mail += `${preparationIndex}）打刻端末がインターネットに接続できる環境をご用意ください。\n\n`;
+
+                preparationIndex++;
+                if (sysAuth === 'bugyo_cloudEdu') {
+                    mail += `${preparationIndex}）奉行クラウドのダウンロードURL、OBCiD/パスワード（管理者権限）のご準備\n`;
+                    mail += ` →奉行クラウドとの連携設定を行うため上記の情報をご準備ください。\n`;
+                    mail += ` ※ダウンロードURLについては奉行クラウド導入時のメールをご参照、\n`;
+                    mail += ` 　もしくは奉行クラウド環境にてご確認ください。\n`;
+                    mail += ` 　ご不明な場合、当日ログインできる端末をご準備ください。\n\n`;
+                } else {
+                    const systemNames = {
+                        xronos_apiEdu: 'クロノス（API連携）',
+                        xronos_autoEdu: 'クロノス（自動連携）',
+                        obc_autoEdu: '就業奉行',
+                        daijin_autoEdu: '就業大臣',
+                        jinjerEdu: 'ジンジャー',
+                        kinro_shishiEdu: '勤労の獅子'
+                    };
+                    const systemName = systemNames[sysAuth];
+                    if (systemName) {
+                        mail += `${preparationIndex}）${systemName}との連携設定に必要な情報のご準備\n`;
+                        mail += ` →当日、${systemName}との連携設定を行うため、ログインできる端末と必要な情報をご準備ください。\n\n`;
+                    }
+                }
+
+            mail += `\n------------------------------------------------------------\n`;
+            mail += `■ 各種マニュアル\n`;
+            mail += `------------------------------------------------------------\n\n`;
+            mail += `・管理者マニュアル\n https://sdk.shift-cc.com/portal/DL/Coloreco/Coloreco_Manual_WebManagement.pdf\n\n`;
+
+            if(alcNotice) {
+                mail += `・アルコール検査機能マニュアル\n https://sdk.shift-cc.com/portal/DL/Coloreco/Coloreco_Manual_AlcoholInspection.pdf\n\n`;
+            }
+
+            mail += `以上、不明点ありましたら、\n`;
+            mail += `こちらのメールもしくは、サポートセンター　${myName}宛へお電話いただけますと幸いです。\n\n`;
+            mail += `よろしくお願いいたします。\n\n`;
+            mail += signature;   
+        }
+    
+    } else if(currentTab === 'newopen') {
+        subject = `【株式会社シフト】カラ・レコ契約新規開設処理について（${cComp}様)`;
+        const nMemo = val('newopenMemo') || "[処理内容]";
+        
+        mail = `田澁さん\n\n`;
+        mail += `お疲れ様です。${myName}です。\n\n`;
+        mail += `カラ・レコで下記の新規開設処理を行いました。\n\n`;
+        mail += `◆${cComp}様\n`;
+        mail += `${nMemo}\n\n`;
+        mail += `ご確認の程よろしくお願いいたします。\n\n`;
+        mail += signature;
+
+    // バージョンアップ
+    } else if(currentTab === 'vup') {
+
+        const isMng = isChked('vupTargetMng');
+        const isAppWin = isChked('vupTargetAppWin');
+        const isAppiPad = isChked('vupTargetAppiPad');
+        const isMobile = isChked('vupTargetMobile');
+        const isLink = isChked('vupTargetLink');
+
+        let targetList = [];
+        if(isMng) targetList.push("管理画面");
+        if(isAppWin || isAppiPad) targetList.push("打刻アプリ");
+        if(isLink) targetList.push("自動連携アプリ");
+        if(isMobile) targetList.push("打刻アプリ（モバイル版）");
+
+        const targetStr = targetList.length > 0 ? targetList.join("・") : "[アップデート対象]";
+    
+        const vDateRaw = val('vupDate');
+        const vDateFormatted = formatJapanDate(vDateRaw);
+        const vMonthDay = formatMonthDay(vDateRaw);
+        const vDayShort = getDayOfWeek(vDateRaw, true);
+
+        const mVupStart = val('vupStartTime') || "[管理画面側の実施時間]";
+        const mAppStart = val('appStartTime') || "[アプリ側の実施時間]";
+        const mLinkStart = val('linkStartTime') || "[自動連携アプリ側の実施時間]";
+        const contentMemo = val('vupContentMemo') || "";
+
+        subject = `【カラ・レコ】${targetStr}アップデートのお知らせ（${vDateFormatted}）`;
+
+        mail = `※このメールは「カラ・レコ」をご利用のお客様及び\n`;
+        mail += `　トライアル中のお客様と代理店様に配信しております。\n\n`;
+        mail += `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n`;
+        mail += `           クラウド版 カラ・レコアップデートのお知らせ\n`;
+        mail += `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n`;
+        mail += `%COMPANY%\n`;
+        mail += `%NAME%様\n\n`;
+        mail += `いつも打刻管理システム「カラ・レコ」をご利用いただき、\n誠にありがとうございます。\n\n`;
+        const hasPunchAppUpdate = isAppWin || isAppiPad;
+        const hasMultipleUpdateTargets = isMng && (hasPunchAppUpdate || isLink || isMobile);
+        if (hasMultipleUpdateTargets) {
+            mail += `${vDateFormatted}（${vDayShort}）に、\n以下クラウド版カラ・レコのバージョンアップを実施いたします。\n`;
+            if (isMng) mail += `・管理画面\n`;
+            if (hasPunchAppUpdate) mail += `・打刻アプリ\n`;
+            if (isLink) mail += `・自動連携アプリケーション\n`;
+            mail += `\n`;
+        } else {
+            const updateProduct = isMng ? 'クラウド版カラ・レコの管理画面' : 'クラウド版カラ・レコ打刻アプリ';
+            mail += `${vDateFormatted}（${vDayShort}）に、\n${updateProduct}のバージョンアップを実施いたします。\n`;
+        }
+        mail += `バージョンアップの実施時刻および修正内容は下記のとおりです。\n\n`;
+        
+        mail += `------------------------------------------------------------\n`;
+        mail += `■ バージョンアップ時刻\n`;
+        mail += `------------------------------------------------------------\n\n`;
+
+        if (isChked('vupTargetMng')) {       
+        mail += `管理画面               ${vMonthDay}（${vDayShort}）${mVupStart} ～\n`;
+        }
+        if (isChked('vupTargetAppWin') || isChked('vupTargetAppiPad') || isChked('vupTargetMobile')) { 
+        mail += `タイムレコーダーアプリ ${vMonthDay}（${vDayShort}）${mAppStart} ～\n`;
+        }
+        if (isChked('vupTargetLink')) { 
+        mail += `自動連携アプリ         ${vMonthDay}（${vDayShort}）${mLinkStart} ～\n`;
+        }
+
+        mail += `※バージョンアップ時刻は前後する可能性がございます。\n\n`;
+        
+        if (isChked('vupTargetAppWin') || isChked('vupTargetAppiPad') || isChked('vupTargetMobile') || isChked('vupTargetLink')) {
+        mail += `------------------------------------------------------------\n`;
+        mail += `■ リリースバージョン\n`;
+        mail += `------------------------------------------------------------\n\n`;
+            mail += `下記が最新となります。\n`;
+        }
+
+        if (isChked('vupWinCc') || isChked('vupWinPalm') || isChked('vupWinFace')) {
+            mail += `Windows版\n`;
+            if (isChked('vupWinCc')) mail += `・カメレオンコード（${val('verWinCc')}）\n`;
+            if (isChked('vupWinPalm')) mail += `・手のひら静脈認証（${val('verWinPalm')}）\n`;
+            if (isChked('vupWinFace')) mail += `・顔認証（${val('verWinFace')}）\n`;
+            mail += `\n`;
+        }
+        
+        if (isChked('vupPadCc') || isChked('vupPadFace')) {
+            mail += `iPad版\n`;
+            if (isChked('vupPadCc')) mail += `・カメレオンコード（${val('verPadCc')}）\n`;
+            if (isChked('vupPadFace')) mail += `・打刻アプリ 顔認証（${val('verPadFace')}）\n`;
+            mail += `\n`;
+        }
+
+        if (isChked('vupMobilePunch')) {
+            mail += `モバイル版\n`;
+            mail += `・モバイル打刻（${val('verMobilePunch')}）\n`;
+            mail += `\n`;
+        }
+        
+        if (isChked('vupeduApp') || isChked('vupeduAppDaijin') || isChked('vupeduAppXronos')) {
+            mail += `自動連携\n`;
+            if (isChked('vupeduApp')) mail += `・自動連携アプリケーション（就業奉行）（${val('vereduApp')}）\n`;
+            if (isChked('vupeduAppDaijin')) mail += `・自動連携アプリケーション（就業大臣）（${val('vereduAppDaijin')}）\n`;
+            if (isChked('vupeduAppXronos')) mail += `・自動連携アプリケーション（Xronos）（${val('vereduAppXronos')}）\n`;
+            mail += `\n`;
+        }
+ 
+        mail += `------------------------------------------------------------\n`;
+        mail += `■ バージョンアップ内容\n`;
+        mail += `------------------------------------------------------------\n\n`;
+        mail += `${contentMemo}\n\n`;
+ 
+        mail += `------------------------------------------------------------\n`;
+        mail += `■ バージョンアップ方法\n`;
+        mail += `------------------------------------------------------------\n\n`;
+        if (isChked('vupTargetMng')) {
+            mail += `◆管理画面\n`;
+            mail += `バージョンアップ作業終了後、自動で反映されます。\n\n`;
+        }
+        if (isChked('vupTargetAppWin')) {
+            mail += `◆打刻アプリ（Windows版）\n`;
+            mail += `上記日時以降にアプリケーションを起動すると、\n`;
+            mail += `バージョンアップ開始画面が表示されます。\n`;
+            mail += `画面の案内に従って、バージョンアップの実施をお願いいたします。\n\n`;
+            mail += `※万が一、バージョンアップがうまくいかない場合は、\n`;
+            mail += `　下記のオンラインヘルプをご参照ください。\n`;
+            mail += `　http://help.cckintai.com/shift/colorecocloud/Detail.aspx?id=3598\n\n`;
+        }
+        if (isChked('vupTargetAppiPad')) {
+            mail += `◆打刻アプリ（iPad版）\n`;
+            mail += `上記日時以降、App Storeに最新版のアプリケーションが公開されます。\n`;
+            mail += `App Storeより手動でのアップデートを行っていただきますようお願いいたします。\n`;
+            mail += `※自動更新設定を有効にしている場合は、手動でのアップデートは不要です。\n\n`;
+        }
+        if (isChked('vupTargetMobile')) {
+            mail += `◆打刻アプリ（モバイル版）\n\n`;
+        }
+
+        mail += `------------------------------------------------------------\n`;
+        mail += `■ バージョンアップ作業中の注意点\n`;
+        mail += `------------------------------------------------------------\n\n`;
+        mail += `バージョンアップ作業中は、以下の制限が発生します。\n`;
+        mail += `・作業時間中（約10分程度）、管理画面にログインできません。\n`;
+        mail += `・打刻がオフライン扱いとなります。\n`;
+        mail += `・自動連携アプリケーションはご利用できません。\n\n`;
+        mail += `詳細は下記オンラインヘルプをご確認ください。\n`;
+        mail += `http://help.cckintai.com/shift/colorecocloud/Detail.aspx?id=3179\n\n`;
+        mail += `ご不明な点がございましたら、\n`;
+        mail += `お気兼ねなく弊社サポートセンターまでお問い合わせください。\n\n`;
+        mail += `今後とも、当システムをご愛顧賜りますよう、\n`;
+        mail += `よろしくお願い申し上げます。\n\n`;
+        mail += vupSignature;
+
+    } else if (currentTab === 'vacation') {
+        const vacType = val('vacationType') || "[年末年始／ゴールデンウィーク／お盆]";
+        const vSchedule = val('vacationSchedule') || "[営業時間スケジュール]";
+        const vResumeRaw = val('vacationResumeDate');
+        const vResumeText = formatResumeDate(vResumeRaw);
+
+        subject = `【カラ・レコ】${vacType}期間中のサポート対応について`;
+        mail = `※このメールは「カラ・レコ」をご利用のお客様及び\n`;
+        mail += `　トライアル中のお客様と代理店様に配信しております。\n\n`;
+        mail += `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n`;
+        mail += `              ${vacType}期間中のサポート対応について\n`;
+        mail += `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n`;
+        mail += `%COMPANY%\n`;
+        mail += `%NAME%様\n\n`;
+        mail += `いつも勤怠管理システム「勤給解決」をご利用いただき、\n`;
+        mail += `誠にありがとうございます。\n\n`;
+        mail += `${vacType}期間中の\n`;
+        mail += `サポートセンターの営業日および営業時間についてご案内いたします。\n\n`;
+        mail += `------------------------------------------------------------\n`;
+        mail += `■ ${vacType}期間中の営業時間\n`;
+        mail += `------------------------------------------------------------\n\n`;
+        mail += `${vSchedule}\n\n`;
+        mail += `------------------------------------------------------------\n\n`;
+        mail += `お電話でのサポートをご希望のお客様は、\n`;
+        mail += `営業時間にご注意くださいますようお願いいたします。\n\n`;
+        mail += `休業期間中にお問い合わせフォームよりいただいたご質問につきましては、\n`;
+        mail += `${vResumeText} 9:30以降、順次対応いたします。\n\n`;
+        mail += `※弊社休業期間中も、管理画面およびタイムレコーダー等のシステムは\n`;
+        mail += `　通常どおりご利用いただけます。\n\n`;
+        mail += `以上でございます。\n\n`;
+        mail += getFormattedSignature(myName, true);
+    
+    // サーバーメンテナンス
+    } else if (currentTab === 'maintenance') {
+        const mDateRaw = val('maintenanceDate');
+        const mDateDisp = mDateRaw ? `${formatMonthDay(mDateRaw)}（${getDayOfWeek(mDateRaw, true)}）` : "●●月●●日（●曜日）";
+        const mTime = val('maintenanceTime') || "●●：●●～";
+        const dateForSubject = mDateRaw ? formatJapanDate(mDateRaw) : "20●●年●●月●●日";
+
+        subject = `【カラ・レコ】管理画面サーバーメンテナンスのお知らせ（${dateForSubject}）\n`;
+        mail = `※このメールは「カラ・レコ」をご利用のお客様及び\n`;
+        mail += `　トライアル中のお客様と代理店様に配信しております。\n\n`;
+        mail += `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n`;
+        mail += `　　　　　クラウド版 カラ・レコメンテナンスのお知らせ\n`;
+        mail += `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n`;
+        mail += `%COMPANY%\n`;
+        mail += `%NAME%様\n\n`;
+        mail += `いつも打刻管理システム「カラ・レコ」をご利用いただき、\n誠にありがとうございます。\n\n`;
+        mail += `${mDateDisp}に、\n`;
+        mail += `クラウド版「カラ・レコ」のサーバーメンテナンスを実施いたします。\n`;
+        mail += `サーバーメンテナンスの実施時刻は、下記のとおりです。\n\n`;
+        mail += `------------------------------------------------------------\n`;
+        mail += `■ サーバーメンテナンス実施時刻\n`;
+        mail += `------------------------------------------------------------\n\n`;
+        mail += `管理画面：${mDateDisp}　${mTime}\n`;
+        mail += `※サーバーメンテナンス実施時刻は前後する可能性がございます。\n\n`;
+        mail += `------------------------------------------------------------\n`;
+        mail += `■ サーバーメンテナンス作業中の注意点\n`;
+        mail += `------------------------------------------------------------\n\n`;
+        mail += `サーバーメンテナンス作業中は、以下の制限が発生します。\n`;
+        mail += `・作業時間中（約10分程度）、管理画面にログインできません。\n`;
+        mail += `・打刻がオフライン扱いとなります。\n`;
+        mail += `・自動連携アプリケーションはご利用できません。\n\n`;
+        mail += `詳細は下記オンラインヘルプをご確認ください。\n`;
+        mail += `http://help.cckintai.com/shift/colorecocloud/Detail.aspx?id=3179\n\n`;
+        mail += `------------------------------------------------------------\n\n`;
+        mail += `ご不明な点がございましたら、\n`;
+        mail += `お気兼ねなく弊社サポートセンターまでお問い合わせください。\n\n`;
+        mail += `今後とも、当システムをご愛顧賜りますよう、\n`;
+        mail += `よろしくお願い申し上げます。\n\n`;
+        mail += signature;
+    }
+
+    const subEl = document.getElementById('output-subject');
+    const outEl = document.getElementById('output');
+    if(subEl) subEl.value = subject;
+    if(outEl) outEl.value = mail;
+}
+
+function copySubject() {
+    const subjectInput = document.getElementById('output-subject');
+    if(!subjectInput) return;
+    subjectInput.select();
+    document.execCommand('copy');
+    alert('件名をコピーしました。');
+}
+
+function copyText() {
+    const textarea = document.getElementById('output');
+    if(!textarea) return;
+    textarea.select();
+    document.execCommand('copy');
+    alert('本文をコピーしました。');
+}
+
+window.onload = () => {
+    let defaultName = ""; 
+    if (typeof CONFIG !== 'undefined' && CONFIG.DEFAULT_MY_NAME) {
+        defaultName = CONFIG.DEFAULT_MY_NAME;
+    }
+    const myNameEl = document.getElementById('myName');
+    if(myNameEl) myNameEl.value = defaultName;
+
+    const today = new Date();
+    today.setFullYear(today.getFullYear() + 1);
+    const yyyy = today.getFullYear();
+    const mm = String(today.getMonth() + 1).padStart(2, '0');
+    const dd = String(today.getDate()).padStart(2, '0');
+    const limitDateEl = document.getElementById('limitDate');
+    if(limitDateEl) limitDateEl.value = `${yyyy}-${mm}-${dd}`;
+
+　　toggleRenewFields();
+togglePalmShipmentFields();
+updateStaffVisibility();
+    toggleLicInputs();
+    toggleVupAppInputs();
+    updateVacationScheduleTemplate();
+    generate();
+};
+
+// ページロード時に保存されたタブを自動復元
+window.addEventListener('DOMContentLoaded', function() {
+    const savedTab = localStorage.getItem('karareco-activeTab');
+    if (savedTab && savedTab !== 'newopen') {
+        switchTab(savedTab);
+    } else {
+        // 初回アクセス時は generate() を呼び出す
+        generate();
+    }
+});
+</script>
+</body>
+</html>
